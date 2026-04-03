@@ -4,7 +4,7 @@ import pandas as pd
 # --- 1. إعدادات الهوية البصرية (Nexus Digital Branding) ---
 st.set_page_config(page_title="Nexus Digital | AI Supply Chain", layout="wide", initial_sidebar_state="expanded")
 
-# تصميم واجهة احترافية باستخدام CSS
+# تصميم واجهة احترافية باستخدام CSS (تم تصحيح الخطأ هنا)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
@@ -24,7 +24,7 @@ st.markdown("""
     }
     .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; }
     </style>
-    """, unsafe_allow_config=True)
+    """, unsafe_allow_html=True)
 
 # --- 2. محرك البيانات (Data Engine) ---
 inventory_data = [
@@ -91,5 +91,5 @@ if report_title:
         <br>
         <small>تم التوليد بواسطة وحدة OptiChain الذكية لـ Nexus Digital</small>
     </div>
-    """, unsafe_allow_config=True)
+    """, unsafe_allow_html=True)
     st.balloons()
