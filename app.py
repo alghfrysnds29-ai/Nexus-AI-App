@@ -1,95 +1,83 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
-# --- 1. إعدادات الهوية البصرية (Nexus Digital Branding) ---
-st.set_page_config(page_title="Nexus Digital | AI Supply Chain", layout="wide", initial_sidebar_state="expanded")
+# --- 1. إعدادات الهوية البصرية ---
+st.set_page_config(page_title="Nexus AI - Enterprise Analytics", layout="wide")
 
-# تصميم واجهة احترافية باستخدام CSS (تم تصحيح الخطأ هنا)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; }
-    .main { background-color: #f4f7f9; }
-    .stButton>button { 
-        width: 100%; border-radius: 12px; height: 3.5em; 
-        background: linear-gradient(90deg, #007bff, #0056b3);
-        color: white; font-weight: bold; border: none; box-shadow: 0 4px 15px rgba(0,123,255,0.3);
-        transition: 0.3s; cursor: pointer;
-    }
-    .stButton>button:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,123,255,0.4); }
-    .report-card { 
-        background: white; padding: 25px; border-radius: 15px; 
-        border-right: 8px solid #007bff; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        margin-top: 20px; direction: rtl;
-    }
-    .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; font-weight: bold; }
+    .report-card { background: white; padding: 20px; border-radius: 15px; border-right: 8px solid #3b82f6; box-shadow: 0 4px 12px rgba(0,0,0,0.1); direction: rtl; margin-bottom: 15px; }
+    .stMetric { background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. محرك البيانات (Data Engine) ---
-inventory_data = [
-    {"المنتج": "MacBook Pro M3 14", "المخزون": 12, "المبيعات اليومية": 1.5, "التكلفة ($)": 1800, "السعر ($)": 2199, "الحالة": "مستقر"},
-    {"المنتج": "iPhone 15 Pro Max", "المخزون": 8, "المبيعات اليومية": 4.2, "التكلفة ($)": 950, "السعر ($)": 1199, "الحالة": "خطر النفاذ"},
-    {"المنتج": "Sony WH-1000XM5", "المخزون": 45, "المبيعات اليومية": 3.0, "التكلفة ($)": 280, "السعر ($)": 349, "الحالة": "مستقر"},
-    {"المنتج": "Smart Watch Series 9", "المخزون": 150, "المبيعات اليومية": 1.2, "التكلفة ($)": 310, "السعر ($)": 399, "الحالة": "فائض كبير"},
-    {"المنتج": "Gaming Chair Stealth", "المخزون": 5, "المبيعات اليومية": 0.8, "التكلفة ($)": 150, "السعر ($)": 299, "الحالة": "تأخر توريد"},
-    {"المنتج": "USB-C Hub 7-in-1", "المخزون": 200, "المبيعات اليومية": 15.0, "التكلفة ($)": 10, "السعر ($)": 45, "الحالة": "حركة سريعة"}
-]
-df = pd.DataFrame(inventory_data)
+# --- 2. دالة توليد بيانات حقيقية (Demo Data) ---
+def get_demo_data():
+    return pd.DataFrame([
+        {"المنتج": "عباية كلاسيك سوداء", "المخزون": 45, "المبيعات": 120, "التكلفة": 150, "سعر البيع": 350, "المرتجعات": 5},
+        {"المنتج": "عطر لافندر 100مل", "المخزون": 12, "المبيعات": 340, "التكلفة": 80, "سعر البيع": 199, "المرتجعات": 12},
+        {"المنتج": "ساعة ذكية Pro", "المخزون": 5, "المبيعات": 85, "التكلفة": 400, "سعر البيع": 850, "المرتجعات": 2},
+        {"المنتج": "طقم بخور ملكي", "المخزون": 80, "المبيعات": 20, "التكلفة": 120, "سعر البيع": 280, "المرتجعات": 0}
+    ])
 
-# --- 3. بناء الواجهة (The Interface) ---
-st.title("🛡️ Nexus Digital Store")
-st.markdown("### نظام OptiChain AI لإدارة سلاسل الإمداد والتسويق")
-st.info("مرحباً منى! النظام جاهز لتحليل بيانات المتجر وتقديم توصيات ذكية.")
+# --- 3. واجهة المستخدم ---
+st.title("🦅 Nexus AI Enterprise")
+st.markdown("### حلول تحليل البيانات المتقدمة للمتاجر الإلكترونية")
 
-# عرض الجدول بشكل احترافي
-st.subheader("📊 نظرة عامة على المخزون الحالي")
-st.dataframe(df, use_container_width=True)
+# سحب الملف من المستخدم
+st.sidebar.header("📥 مركز رفع البيانات")
+uploaded_file = st.sidebar.file_uploader("ارفع ملف إكسل أو CSV لمتجرك", type=['csv', 'xlsx'])
+
+if uploaded_file is not None:
+    try:
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+        st.sidebar.success("تم رفع الملف بنجاح!")
+    except Exception as e:
+        st.sidebar.error("خطأ في قراءة الملف. تأكد من الصيغة.")
+        df = get_demo_data()
+else:
+    st.sidebar.info("يتم عرض 'بيانات تجريبية' لشركة افتراضية حالياً. ارفع ملفك للتحليل الخاص.")
+    df = get_demo_data()
+
+# --- 4. لوحة المؤشرات الذكية ---
+total_revenue = (df['المبيعات'] * df['سعر البيع']).sum()
+total_profit = ((df['سعر البيع'] - df['التكلفة']) * df['المبيعات']).sum()
+avg_return_rate = (df['المرتجعات'].sum() / df['المبيعات'].sum()) * 100
+
+c1, c2, c3 = st.columns(3)
+c1.metric("إجمالي المبيعات", f"{total_revenue:,} ريال")
+c2.metric("صافي الأرباح المتوقعة", f"{total_profit:,} ريال")
+c3.metric("معدل المرتجعات العام", f"{avg_return_rate:.1f}%")
 
 st.markdown("---")
-st.header("🤖 لوحة تحكم القرارات الذكية")
-st.write("اضغطي على الخدمة المطلوبة للحصول على تقرير فوري:")
 
-# توزيع الميزات الخمس على أزرار
-col1, col2, col3, col4, col5 = st.columns(5)
+# --- 5. التحليل البصري ---
+col_a, col_b = st.columns(2)
 
-report_title = ""
-report_content = ""
+with col_a:
+    st.subheader("📊 أداء المنتجات (الربح مقابل المخزون)")
+    df['الربح'] = (df['سعر البيع'] - df['التكلفة']) * df['المبيعات']
+    fig = px.scatter(df, x="المخزون", y="الربح", size="المبيعات", color="المنتج", text="المنتج")
+    st.plotly_chart(fig, use_container_width=True)
 
-with col1:
-    if st.button("🚨 أمان الإعلانات"):
-        report_title = "فحص توافق التسويق"
-        report_content = "⚠️ **تحذير:** يجب إيقاف حملات 'iPhone 15' فوراً. المخزون الحالي (8 قطع) سينفد خلال 48 ساعة. توفير ميزانية الإعلانات وتوجيهها لمنتج 'USB-C Hub' الذي يمتلك فائضاً وحركة سريعة."
+with col_b:
+    st.subheader("💡 توصيات الذكاء الاصطناعي")
+    
+    # منطق التحليل التلقائي
+    for index, row in df.iterrows():
+        if row['المخزون'] < 10:
+            st.markdown(f"<div class='report-card'>⚠️ <b>خطر نفاذ:</b> المنتج '{row['المنتج']}' شارف على الانتهاء. أوقف الإعلانات فوراً أو اطلب كمية جديدة.</div>", unsafe_allow_html=True)
+        if row['المرتجعات'] > (row['المبيعات'] * 0.1):
+            st.markdown(f"<div class='report-card' style='border-right-color: #ef4444;'>🚨 <b>خسارة مرتجعات:</b> المنتج '{row['المنتج']}' لديه نسبة استرجاع عالية. راجع الجودة أو الوصف.</div>", unsafe_allow_html=True)
+        if row['المخزون'] > 50 and row['المبيعات'] < 30:
+            st.markdown(f"<div class='report-card' style='border-right-color: #f59e0b;'>📦 <b>مخزون راكد:</b> المنتج '{row['المنتج']}' لا يباع جيداً. اقترح عمل عرض 'اشتر واحد واحصل على الثاني مجاناً'.</div>", unsafe_allow_html=True)
 
-with col2:
-    if st.button("🛡️ درع الأرباح"):
-        report_title = "تحليل حماية الهوامش"
-        report_content = "💰 **تحليل الربحية:** منتج 'Gaming Chair' يمتلك هامش ربح ممتاز، ولكن تكاليف التخزين الطويلة بدأت تأكل الربح. يُنصح بعمل خصم 5% لسرعة التدوير بدلاً من دفع تكاليف أرضية إضافية."
-
-with col3:
-    if st.button("📉 مخاطر الموردين"):
-        report_title = "تقييم سلاسل الإمداد"
-        report_content = "🚚 **تنبيه لوجستي:** مورد Apple Direct يعاني من تأخير. نوصي بتحويل طلبات 'الآيفون' القادمة لمورد محلي (حتى لو بسعر أعلى 5%) لضمان عدم انقطاع البيع في المواسم."
-
-with col4:
-    if st.button("🔥 محاكي الأزمات"):
-        report_title = "اختبار تحمل (Stress Test)"
-        report_content = "📈 **سيناريو نمو 40%:** في حال زيادة الطلب، سيعاني المتجر من فجوة سيولة بقيمة 12,000$. نوصي بتأمين خط ائتمان أو تقليل مشتريات المنتجات 'الفائضة' لتوفير الكاش."
-
-with col5:
-    if st.button("💰 تصفية الراكد"):
-        report_title = "ذكاء التخلص من الفائض"
-        report_content = "📦 **خطة التصفية:** الـ 'Smart Watch' لديها مبيعات منخفضة (1.2 قطعة/يوم). نقترح استراتيجية 'Bundle': (اشترِ ساعة واحصل على USB-C Hub بخصم 50%) لتفريغ المستودع فوراً."
-
-# --- 4. منطقة عرض التقارير ---
-if report_title:
-    st.markdown(f"""
-    <div class="report-card">
-        <h2 style="color: #007bff;">📋 تقرير {report_title}</h2>
-        <hr>
-        <p style="font-size: 1.1em; line-height: 1.8;">{report_content}</p>
-        <br>
-        <small>تم التوليد بواسطة وحدة OptiChain الذكية لـ Nexus Digital</small>
-    </div>
-    """, unsafe_allow_html=True)
-    st.balloons()
+# عرض الجدول الكامل
+with st.expander("👁️ عرض جدول البيانات الكامل"):
+    st.write(df)
