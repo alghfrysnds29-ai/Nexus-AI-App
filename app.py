@@ -2,168 +2,142 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import io
+import plotly.graph_objects as go
 
-st.set_page_config(page_title="Nexus AI | Enterprise", page_icon="🚀", layout="wide")
+# --- 1. إعدادات النظام الاحترافي والهوية البصرية ---
+st.set_page_config(page_title="Nexus AI - Supply Chain Command Center", layout="wide")
 
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    div[data-testid="stMetric"] { background-color: #ffffff !important; border-top: 5px solid #3b82f6 !important; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    .main { background-color: #0f172a; color: #f8fafc; }
+    .stMetric { background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; }
+    .sidebar .sidebar-content { background: #1e293b; }
+    .report-card { background: #1e293b; padding: 20px; border-radius: 12px; border-left: 5px solid #3b82f6; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# محسّن: Smart Column Mapper يدعم تطابق جزئي وحالة أحرف مختلفة
-def smart_col_mapper(df):
-    mapping = {
-        "المنتج": ["المنتج", "اسم المنتج", "Product", "Item", "Name"],
-        "المورد": ["المورد", "Supplier", "Vendor"],
-        "المخزون الحالي": ["المخزون", "Stock", "Inventory", "Qty", "Quantity"],
-        "المبيعات الشهرية": ["المبيعات", "Sales", "Monthly Sales", "Monthly_Sales"],
-        "تكلفة الوحدة": ["التكلفة", "Cost", "Unit Cost", "Unit_Cost"],
-        "سعر البيع": ["السعر", "Price", "Selling Price", "Sale Price"],
-        "زمن التوريد (أيام)": ["زمن التوريد", "Lead Time", "Lead_Time"],
-        "معدل المرتجعات (%)": ["المرتجعات", "Returns", "Return Rate", "Return_Rate"]
-    }
-    new_cols = {}
-    cols_lower = {c: c.lower().strip() for c in df.columns}
-    for official_name, aliases in mapping.items():
-        alias_lowers = [a.lower() for a in aliases]
-        found = False
-        for col, col_lower in cols_lower.items():
-            # تطابق كامل أو تطابق جزئي للكلمة الأساسية
-            if col_lower in alias_lowers or any(a in col_lower for a in alias_lowers):
-                new_cols[col] = official_name
-                found = True
-                break
-        # لا نكسر إذا لم نجد العمود؛ سننشئه لاحقاً في المعالجة
-    return df.rename(columns=new_cols)
-
-# معالجة بيانات أكثر مرونة
-def process_data(df):
-    d = df.copy()
-
-    # تأكد من وجود الأعمدة الأساسية، وإن لم تكن موجودة أنشئها بقيم افتراضية مع تحذير غير متطفل
-    required_cols = {
-        "المبيعات الشهرية": 0,
-        "تكلفة الوحدة": 0.0,
-        "سعر البيع": 0.0,
-        "معدل المرتجعات (%)": 0.0,
-        "المخزون الحالي": 0
-    }
-    for col, default in required_cols.items():
-        if col not in d.columns:
-            d[col] = default
-
-    # إجمالي الربح
+# --- 2. محرك العمليات الحسابية (المعالج الذكي) ---
+def process_supply_chain_data(df_input):
+    """تقوم هذه الدالة بإجراء كافة الحسابات التقنية على البيانات"""
+    d = df_input.copy()
+    
+    # تأكيد وجود الأعمدة الأساسية أو حسابها
     if 'إجمالي الربح' not in d.columns:
         d['إجمالي الربح'] = (d['سعر البيع'] - d['تكلفة الوحدة']) * d['المبيعات الشهرية']
-
-    # ABC classification
-    d = d.sort_values(by='إجمالي الربح', ascending=False).reset_index(drop=True)
+    
+    # أ. تصنيف ABC (الأكثر ربحية)
+    d = d.sort_values(by='إجمالي الربح', ascending=False)
     d['Cumulative_Profit'] = d['إجمالي الربح'].cumsum()
-    total_p = d['إجمالي الربح'].sum() if d['إجمالي الربح'].sum() != 0 else 1
-    d['Profit_%'] = (d['Cumulative_Profit'] / total_p) * 100
+    total_profit = d['إجمالي الربح'].sum()
+    d['Profit_%'] = (d['Cumulative_Profit'] / total_profit) * 100
     d['التصنيف'] = d['Profit_%'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
-
-    # EOQ مع حماية من القسمة على صفر والقيم السالبة
-    annual_demand = (d['المبيعات الشهرية'] * 12).clip(lower=0)
-    holding_cost = (d['تكلفة الوحدة'] * 0.2 + 0.1).replace(0, np.nan)
-    eoq = np.sqrt((2 * annual_demand * 150) / holding_cost)
-    eoq = eoq.replace([np.inf, -np.inf], 0).fillna(0).astype(int)
-    d['الكمية المثالية للطلب (EOQ)'] = eoq
-
-    # أيام الركود عشوائية إن لم تكن موجودة
-    if 'أيام الركود' not in d.columns:
-        d['أيام الركود'] = np.random.randint(5, 120, len(d))
-
+    
+    # ب. حساب الكمية الاقتصادية للطلب (EOQ)
+    # نستخدم قيم افتراضية للتكاليف إذا لم تكن موجودة في الملف المرفوع
+    cost_per_order = 150
+    holding_cost_pct = 0.2
+    d['الكمية المثالية للطلب (EOQ)'] = np.sqrt(
+        (2 * (d['المبيعات الشهرية'] * 12) * cost_per_order) / 
+        (d['تكلفة الوحدة'] * holding_cost_pct)
+    ).replace([np.inf, -np.inf], 0).fillna(0).astype(int)
+    
     return d
 
-# قراءة الملف مع استخدام بايتس لمنع بقاء البيانات الافتراضية بعد الرفع
+# --- 3. توليد البيانات الافتراضية (Demo Data) ---
 @st.cache_data
-def load_initial_data(file_bytes, filename):
-    if file_bytes is not None:
-        try:
-            if filename.lower().endswith('xlsx'):
-                df_raw = pd.read_excel(io.BytesIO(file_bytes))
-            else:
-                df_raw = pd.read_csv(io.BytesIO(file_bytes))
-            df_mapped = smart_col_mapper(df_raw)
-            return df_mapped, False
-        except Exception as e:
-            # في حال فشل القراءة، نعيد None مع العلم أننا لسنا في وضع العرض التجريبي
-            return pd.DataFrame(), False
-    else:
-        demo = pd.DataFrame({
-            "المنتج": ["عطر ملكي", "بخور عود"],
-            "المورد": ["مورد 1", "مورد 2"],
-            "المخزون الحالي": [50, 100],
-            "المبيعات الشهرية": [200, 80],
-            "تكلفة الوحدة": [100, 50],
-            "سعر البيع": [300, 150],
-            "زمن التوريد (أيام)": [7, 10],
-            "معدل المرتجعات (%)": [1.5, 0.5]
-        })
-        return demo, True
+def get_default_data():
+    np.random.seed(42)
+    products = [f"منتج {i}" for i in range(1, 51)]
+    categories = ["إلكترونيات", "أزياء", "منزل", "عطور", "ألعاب"]
+    data = {
+        "المنتج": products,
+        "الفئة": [np.random.choice(categories) for _ in range(50)],
+        "المخزون الحالي": np.random.randint(5, 500, 50),
+        "المبيعات الشهرية": np.random.randint(50, 1000, 50),
+        "تكلفة الوحدة": np.random.randint(20, 2000, 50),
+        "سعر البيع": np.random.randint(50, 3000, 50),
+        "زمن التوريد (أيام)": np.random.randint(3, 30, 50),
+        "معدل المرتجعات (%)": np.random.uniform(1, 20, 50).round(1)
+    }
+    return pd.DataFrame(data)
 
-# Sidebar
-st.sidebar.header("NEXUS AI")
-company_name = st.sidebar.text_input("🏢 اسم شركتك", "الماجد للعود")
-uploaded_file = st.sidebar.file_uploader("📥 ارفع بيانات شركتك (Excel/CSV)", type=['xlsx', 'csv'])
+# --- 4. واجهة المستخدم والتحكم بالبيانات ---
+st.title("🌐 Nexus AI: Global Supply Chain Control")
+st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=100)
+st.sidebar.title("إدارة العمليات")
 
-# اقرأ الملف كبايتس ثم مرره إلى الدالة المخبأة
-file_bytes = None
-filename = ""
-if uploaded_file is not None:
-    file_bytes = uploaded_file.read()
-    filename = uploaded_file.name
-    # أعد مؤشر الملف إن احتجنا لقراءته لاحقاً
+uploaded_file = st.sidebar.file_uploader("ارفع بيانات متجرك (Excel/CSV)", type=['xlsx', 'csv'])
+
+if uploaded_file:
     try:
-        uploaded_file.seek(0)
-    except:
-        pass
-
-raw_df, using_demo = load_initial_data(file_bytes if file_bytes is not None else None, filename)
-
-# إذا كانت القراءة فشلت وأعدنا DataFrame فارغ، نعرض تحذيراً ونعود للعرض التجريبي
-if raw_df.empty and not using_demo:
-    st.sidebar.error("حدث خطأ في قراءة الملف. تأكد من صيغة الملف وحاول مرة أخرى.")
-    raw_df, using_demo = load_initial_data(None, "")
-
-df = process_data(raw_df)
-
-if not using_demo:
-    st.sidebar.success(f"✅ تم تحليل بيانات {company_name} بنجاح")
+        if uploaded_file.name.endswith('xlsx'):
+            raw_df = pd.read_excel(uploaded_file)
+        else:
+            raw_df = pd.read_csv(uploaded_file)
+        df = process_supply_chain_data(raw_df)
+        st.sidebar.success("✅ تم تحميل ومعالجة ملفك بنجاح")
+    except Exception as e:
+        st.sidebar.error(f"❌ خطأ في قراءة الملف: {e}")
+        df = process_supply_chain_data(get_default_data())
 else:
-    st.sidebar.info("عرض بيانات تجريبية. ارفع ملفك لاستبدالها ببياناتك الحقيقية.")
+    df = process_supply_chain_data(get_default_data())
 
-menu = st.sidebar.radio("القائمة الرئيسية:", ["🏠 ملخص تنفيذي", "📦 المستودع والطلب", "🔮 التنبؤ بالطلب", "❄️ تقرير الراكد"])
+# القائمة الرئيسية
+menu = st.sidebar.selectbox("اختر القسم", ["لوحة التحكم العامة", "تحليل المخزون الذكي", "رادار التسويق والربحية", "محاكي الموردين"])
 
-st.title(f"📊 تحليلات شركة {company_name}")
+# --- 5. الأقسام التحليلية ---
 
-if menu == "🏠 ملخص تنفيذي":
-    c1, c2, c3 = st.columns(3)
-    c1.metric("إجمالي الربح من ملفك", f"{int(df['إجمالي الربح'].sum()):,} ر.س")
-    c2.metric("عدد المنتجات المحللة", len(df))
-    c3.metric("متوسط المرتجعات", f"{df['معدل المرتجعات (%)'].mean():.1f}%")
-    st.plotly_chart(px.pie(df, names='التصنيف', values='إجمالي الربح', hole=0.4, title="تحليل أرباح منتجاتك"), use_container_width=True)
+if menu == "لوحة التحكم العامة":
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("إجمالي قيمة المخزون", f"{int((df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()):,} ر.س")
+    c2.metric("الأرباح الشهرية المتوقعة", f"{int(df['إجمالي الربح'].sum()):,} ر.س")
+    c3.metric("منتجات الفئة A", len(df[df['التصنيف'] == 'A (حيوي)']))
+    c4.metric("متوسط المرتجعات", f"{df['معدل المرتجعات (%)'].mean():.1f}%")
 
-elif menu == "📦 المستودع والطلب":
-    st.subheader("📦 تحليل الكميات بناءً على بيانات العميل")
+    st.markdown("---")
+    
+    col_left, col_right = st.columns([2, 1])
+    with col_left:
+        st.subheader("📈 تحليل توزيع الأرباح (ABC Analysis)")
+        fig_abc = px.pie(df, names='التصنيف', values='إجمالي الربح', hole=0.5, color_discrete_sequence=px.colors.sequential.RdBu)
+        st.plotly_chart(fig_abc, use_container_width=True)
+    
+    with col_right:
+        st.subheader("🚨 تنبيهات فورية")
+        stockouts = df[df['المخزون الحالي'] < (df['المبيعات الشهرية'] / 4)]
+        if not stockouts.empty:
+            for _, row in stockouts.head(5).iterrows():
+                st.error(f"**نفاذ وشيك:** {row['المنتج']} (باقي {row['المخزون الحالي']} قطعة)")
+        else:
+            st.success("المخزون في مستويات آمنة")
+
+elif menu == "تحليل المخزون الذكي":
+    st.subheader("📦 إدارة المستودعات والطلب الاقتصادي")
+    st.write("يساعدك هذا القسم في تحديد الكمية المثالية للطلب لتقليل تكاليف التخزين.")
+    
     st.dataframe(df[['المنتج', 'المخزون الحالي', 'الكمية المثالية للطلب (EOQ)', 'التصنيف']], use_container_width=True)
-    st.plotly_chart(px.bar(df, x="المنتج", y="المخزون الحالي", color="التصنيف", title="توزيع المخزون الحالي"), use_container_width=True)
+    
+    fig_eoq = px.scatter(df, x="المخزون الحالي", y="الكمية المثالية للطلب (EOQ)", size="إجمالي الربح", color="التصنيف", hover_name="المنتج", title="التوازن بين التكلفة والكمية")
+    st.plotly_chart(fig_eoq, use_container_width=True)
 
-elif menu == "🔮 التنبؤ بالطلب":
-    st.subheader("🔮 توقعات المبيعات المستقبلية")
-    df['الطلب المتوقع'] = (df['المبيعات الشهرية'] * 1.2).astype(int)
-    st.plotly_chart(px.line(df, x="المنتج", y=["المبيعات الشهرية", "الطلب المتوقع"], title="المبيعات الحالية مقابل المتوقعة"), use_container_width=True)
+elif menu == "رادار التسويق والربحية":
+    st.subheader("🎯 ربط التسويق بسلاسل الإمداد")
+    st.info("💡 نصيحة: ركز ميزانيتك الإعلانية على فئة A لضمان أعلى عائد على الإنفاق.")
+    
+    fig_marketing = px.bar(df.head(15), x="المنتج", y="إجمالي الربح", color="معدل المرتجعات (%)", title="أكثر 15 منتجاً ربحية")
+    st.plotly_chart(fig_marketing, use_container_width=True)
+    
+    st.warning("⚠️ انتبه للمنتجات ذات اللون الأحمر؛ المرتجعات العالية قد تلتهم أرباحك الإعلانية.")
 
-elif menu == "❄️ تقرير الراكد":
-    st.subheader("❄️ تحليل البضاعة الراكدة")
-    dead_stock = df[df['أيام الركود'] > 60]
-    st.warning(f"وجدنا {len(dead_stock)} منتجات راكدة في ملفك.")
-    st.table(dead_stock[['المنتج', 'المخزون الحالي', 'أيام الركود']])
+elif menu == "محاكي الموردين":
+    st.subheader("🚚 إدارة الموردين والمخاطر")
+    fig_risk = px.scatter(df, x="زمن التوريد (أيام)", y="معدل المرتجعات (%)", size="المخزون الحالي", color="التصنيف", title="خريطة مخاطر الموردين")
+    st.plotly_chart(fig_risk, use_container_width=True)
 
-st.markdown("---")
-st.caption(f"تطوير منى محمد | تحليل ذكي لبيانات {company_name} 2026")
+# عرض البيانات الخام
+with st.expander("📂 معاينة قاعدة البيانات الكاملة"):
+    st.write(df)
+
+st.caption("Nexus AI Framework - تم التطوير لخدمة قطاع الأعمال")
