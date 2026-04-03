@@ -5,194 +5,181 @@ import plotly.express as px
 import io
 from datetime import datetime
 
-# --- 1. إعدادات الصفحة والهوية البصرية ---
+# --- 1. إعدادات الصفحة ---
 st.set_page_config(
-    page_title="Nexus AI | نظام تحليل البيانات الاحترافي", 
-    page_icon="📊", 
-    layout="wide"
+    page_title="Nexus AI | نظام إدارة البيانات", 
+    page_icon="💎", 
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# تصميم CSS احترافي يدعم التوجه RTL وتنسيق الواجهة
+# --- 2. تنسيق الواجهة (CSS) لتصحيح RTL ودعم الخطوط ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    .main { background-color: #f8fafc; }
-    .stMetric { 
-        background-color: #ffffff; 
-        border-radius: 12px; 
-        padding: 20px; 
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); 
-        border-top: 4px solid #2563eb; 
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
+    
+    html, body, [class*="css"] {
+        font-family: 'Cairo', sans-serif;
+        direction: rtl;
+        text-align: right;
     }
-    .notification-badge { 
-        background-color: #ef4444; 
-        color: white; 
-        padding: 4px 8px; 
-        border-radius: 50%; 
-        font-size: 12px; 
-        vertical-align: top; 
+    
+    .stMetric {
+        background-color: #ffffff;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-right: 5px solid #007bff;
     }
-    footer {visibility: hidden;}
+    
+    /* محاذاة العناصر في الشريط الجانبي */
+    [data-testid="stSidebar"] {
+        direction: rtl;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. محرك توليد البيانات التجريبية (Synthetic Data Engine) ---
+# --- 3. محرك توليد البيانات التجريبية ---
 @st.cache_data
-def generate_demo_data(rows=1000):
+def load_data(rows=1000):
     np.random.seed(42)
-    categories = ['الأجهزة الإلكترونية', 'الملابس والأزياء', 'الأثاث المنزلي', 'المنتجات الغذائية', 'أدوات التجميل']
-    suppliers = [f'المورد العالمي {i}' for i in range(1, 21)]
+    categories = ['إلكترونيات', 'مستلزمات منزلية', 'أزياء', 'أدوات تجميل', 'ألعاب أطفال']
+    suppliers = [f'المورد العالمي {i}' for i in range(1, 11)]
     
     data = {
-        "المنتج": [f"منتج تجريبي {i}" for i in range(1, rows + 1)],
+        "المنتج": [f"منتج نمطي {i}" for i in range(1, rows + 1)],
         "الفئة": np.random.choice(categories, rows),
         "المورد": np.random.choice(suppliers, rows),
-        "المخزون الحالي": np.random.randint(5, 1000, rows),
-        "المبيعات الشهرية": np.random.randint(20, 1500, rows),
-        "تكلفة الوحدة": np.random.uniform(50, 2000, rows).round(2),
-        "سعر البيع": np.random.uniform(100, 4000, rows).round(2),
-        "زمن التوريد (أيام)": np.random.randint(2, 30, rows),
-        "نسبة المرتجعات (%)": np.random.uniform(0, 5, rows).round(1)
+        "المخزون": np.random.randint(10, 500, rows),
+        "المبيعات": np.random.randint(5, 1000, rows),
+        "التكلفة": np.random.uniform(20, 1500, rows).round(2),
+        "سعر_البيع": np.random.uniform(50, 3000, rows).round(2),
+        "زمن_التوريد": np.random.randint(3, 30, rows)
     }
+    
     df = pd.DataFrame(data)
-    # التأكد من منطقية السعر (سعر البيع > التكلفة)
-    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) * 1.3
+    # تصحيح الأسعار لضمان وجود ربح
+    df['سعر_البيع'] = df[['التكلفة', 'سعر_البيع']].max(axis=1) + 20
     return df
 
-# --- 3. محرك التحليل المتقدم (The Analytics Engine) ---
-def process_analytics(df, ship_cost, tax_pct, op_cost_pct):
+# --- 4. محرك التحليل والعمليات الحسابية ---
+def perform_analysis(df, ship_cost, tax_rate, op_rate):
     d = df.copy()
     
-    # [أ] حساب تكاليف الهبوط والربحية
-    d['الضرائب والرسوم'] = d['سعر البيع'] * (tax_pct / 100)
-    d['التكلفة التشغيلية للقطعة'] = d['تكلفة الوحدة'] + ship_cost + d['الضرائب والرسوم']
+    # حساب التكاليف
+    d['تكلفة_الهبوط'] = d['التكلفة'] + ship_cost
+    d['ضريبة_القيمة'] = d['سعر_البيع'] * (tax_rate / 100)
     
-    # [ب] إجمالي وصافي الربح
-    d['إجمالي الربح'] = (d['سعر البيع'] - d['التكلفة التشغيلية للقطعة']) * d['المبيعات الشهرية']
-    d['صافي الربح'] = d['إجمالي الربح'] * (1 - op_cost_pct / 100)
+    # حساب الأرباح
+    d['إجمالي_الربح'] = (d['سعر_البيع'] - (d['تكلفة_الهبوط'] + d['ضريبة_القيمة'])) * d['المبيعات']
+    d['صافي_الربح'] = d['إجمالي_الربح'] * (1 - (op_rate / 100))
     
-    # [ج] لوجستيات المخزون
-    avg_daily_sales = d['المبيعات الشهرية'] / 30
-    d['مخزون الأمان'] = (avg_daily_sales * 1.5 * d['زمن التوريد (أيام)'] * 0.2).astype(int)
-    d['نقطة إعادة الطلب'] = (avg_daily_sales * d['زمن التوريد (أيام)']).astype(int) + d['مخزون الأمان']
+    # لوجستيات المخزون
+    d['نقطة_إعادة_الطلب'] = ((d['المبيعات'] / 30) * d['زمن_التوريد'] * 1.2).astype(int)
     
-    # [د] تصنيف ABC (حسب المساهمة في الربح)
-    d = d.sort_values(by='صافي الربح', ascending=False)
-    d['Cumulative_Profit'] = d['صافي الربح'].cumsum()
-    total_net = d['صافي الربح'].sum() if d['صافي الربح'].sum() != 0 else 1
-    d['Profit_Percentage'] = (d['Cumulative_Profit'] / total_net) * 100
-    d['تصنيف المنتج'] = d['Profit_Percentage'].apply(
-        lambda x: 'A (قيمة عالية)' if x <= 70 else ('B (قيمة متوسطة)' if x <= 90 else 'C (منتج ثانوي)')
+    # تصنيف ABC
+    d = d.sort_values(by='صافي_الربح', ascending=False)
+    d['الربح_التراكمي'] = d['صافي_الربح'].cumsum()
+    total_profit = d['صافي_الربح'].sum() if d['صافي_الربح'].sum() != 0 else 1
+    d['نسبة_الربح'] = (d['الربح_التراكمي'] / total_profit) * 100
+    
+    d['التصنيف'] = d['نسبة_الربح'].apply(
+        lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)')
     )
     
     return d
 
-# --- 4. شريط التحكم الجانبي (Sidebar Control) ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1541/1541411.png", width=100)
-st.sidebar.markdown("## ⚙️ إعدادات النموذج التحليلي")
-store_name = st.sidebar.text_input("اسم المؤسسة/المتجر", "شركة النخبة للتجارة")
+# --- 5. الشريط الجانبي والمدخلات ---
+st.sidebar.header("⚙️ إعدادات النظام")
+store_name = st.sidebar.text_input("اسم المشروع/المتجر", "مؤسسة الأعمال الذكية")
 
-with st.sidebar.expander("💰 مدخلات التكاليف والضرائب"):
-    ship_cost = st.number_input("متوسط شحن القطعة (ر.س)", 0.0, 1000.0, 10.0)
-    tax_pct = st.slider("نسبة الضريبة والرسوم (%)", 0, 100, 15)
-    op_cost = st.slider("المصاريف الإدارية والتشغيلية (%)", 0, 100, 10)
+with st.sidebar.expander("📊 معايير الحساب المالية"):
+    shipping = st.number_input("تكلفة الشحن للقطعة", 0.0, 500.0, 15.0)
+    tax = st.slider("نسبة الضريبة (%)", 0, 25, 15)
+    ops = st.slider("المصاريف التشغيلية (%)", 0, 50, 10)
 
-st.sidebar.markdown("---")
-data_size = st.sidebar.select_slider("حجم البيانات للتجربة", options=[100, 1000, 5000, 10000], value=1000)
-uploaded_file = st.sidebar.file_uploader("رفع ملف مبيعات (Excel/CSV)", type=['xlsx', 'csv'])
+# خيار رفع الملفات أو استخدام البيانات التجريبية
+uploaded_file = st.sidebar.file_uploader("ارفع ملف مبيعاتك (اختياري)", type=['csv', 'xlsx'])
 
-# جلب ومعالجة البيانات
 if uploaded_file:
-    raw_df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
+    try:
+        if uploaded_file.name.endswith('csv'):
+            raw_data = pd.read_csv(uploaded_file)
+        else:
+            raw_data = pd.read_excel(uploaded_file)
+    except Exception as e:
+        st.error(f"حدث خطأ في قراءة الملف: {e}")
+        raw_data = load_data()
 else:
-    raw_df = generate_demo_data(data_size)
+    raw_data = load_data()
 
-df = process_analytics(raw_df, ship_cost, tax_pct, op_cost)
+# تنفيذ التحليل
+df = perform_analysis(raw_data, shipping, tax, ops)
 
-# --- 5. نظام التنبيهات الذكي ---
-critical_items = df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']]
-st.markdown(f"### 🔔 مركز التنبيهات الذكي <span class='notification-badge'>{len(critical_items)}</span>", unsafe_allow_html=True)
+# --- 6. الواجهة الرئيسية والعرض ---
+st.title(f"🚀 لوحة تحكم: {store_name}")
 
-if not critical_items.empty:
-    with st.expander("⚠️ منتجات تحتاج لإعادة طلب فورية"):
-        st.warning(f"يوجد {len(critical_items)} منتجاً تحت خط الأمان للمخزون.")
-        st.table(critical_items[['المنتج', 'المخزون الحالي', 'نقطة إعادة الطلب']].head(5))
-
-# --- 6. واجهة العرض الرئيسية ---
-st.title(f"📊 لوحة ذكاء الأعمال الاستراتيجية: {store_name}")
-
-# المؤشرات الرئيسية (KPIs)
+# صف المؤشرات الرئيسية
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 with kpi1:
-    st.metric("صافي الربح المتوقع", f"{df['صافي الربح'].sum():,.0f} ر.س", "شهرياً")
+    st.metric("صافي الأرباح الكلية", f"{df['صافي_الربح'].sum():,.0f} ر.س")
 with kpi2:
-    capital = (df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()
-    st.metric("رأس المال المخزني", f"{capital:,.0f} ر.س")
+    stock_value = (df['المخزون'] * df['التكلفة']).sum()
+    st.metric("قيمة المخزون الحالية", f"{stock_value:,.0f} ر.س")
 with kpi3:
-    turnover = df['المبيعات الشهرية'].sum() / df['المخزون الحالي'].sum()
-    st.metric("معدل دوران المخزون", f"{turnover:.2f}x")
+    critical_count = len(df[df['المخزون'] <= df['نقطة_إعادة_الطلب']])
+    st.metric("منتجات تحتاج طلب", critical_count, delta_color="inverse")
 with kpi4:
-    roi = (df['صافي الربح'].sum() / capital) * 100 if capital != 0 else 0
-    st.metric("العائد على الاستثمار", f"{roi:.1f}%")
+    roi = (df['صافي_الربح'].sum() / stock_value * 100) if stock_value > 0 else 0
+    st.metric("العائد المتوقع (ROI)", f"{roi:.1f}%")
 
 st.markdown("---")
 
-# التبويبات التحليلية
-tab1, tab2, tab3 = st.tabs(["📈 التحليل المالي", "📦 اللوجستيات والمخزون", "🏬 أداء الموردين"])
+# تبويبات العرض
+tab1, tab2, tab3 = st.tabs(["📈 التحليل المالي", "📦 إدارة المخزون", "📋 تفاصيل البيانات"])
 
 with tab1:
-    col1, col2 = st.columns(2)
-    with col1:
-        fig_pie = px.pie(df, names='تصنيف المنتج', values='صافي الربح', 
-                         title="توزيع الأرباح حسب تصنيف ABC", 
-                         hole=0.4, color_discrete_sequence=px.colors.qualitative.Pastel)
-        st.plotly_chart(fig_pie, use_container_width=True)
-    with col2:
-        fig_bar = px.bar(df.groupby('الفئة')['صافي الربح'].sum().reset_index(), 
-                         x='الفئة', y='صافي الربح', title="الأرباح حسب فئة المنتج",
-                         color='الفئة', text_auto='.2s')
-        st.plotly_chart(fig_bar, use_container_width=True)
+    col_a, col_b = st.columns(2)
+    with col_a:
+        fig1 = px.pie(df, names='التصنيف', values='صافي_الربح', title="توزيع الربح حسب أهمية المنتجات (ABC)")
+        st.plotly_chart(fig1, use_container_width=True)
+    with col_b:
+        fig2 = px.bar(df.groupby('الفئة')['صافي_الربح'].sum().reset_index(), 
+                      x='الفئة', y='صافي_الربح', color='الفئة', title="صافي الربح حسب فئة المنتج")
+        st.plotly_chart(fig2, use_container_width=True)
 
 with tab2:
-    st.subheader("تحليل فجوات المخزون")
-    fig_scatter = px.scatter(df, x="المخزون الحالي", y="المبيعات الشهرية", 
-                             size="صافي الربح", color="تصنيف المنتج",
-                             hover_name="المنتج", title="العلاقة بين المخزون والمبيعات والربحية")
-    st.plotly_chart(fig_scatter, use_container_width=True)
-    st.dataframe(df[['المنتج', 'الفئة', 'المخزون الحالي', 'نقطة إعادة الطلب', 'تصنيف المنتج']].head(50), use_container_width=True)
+    st.subheader("⚠️ تنبيهات المخزون الحرجة")
+    critical_df = df[df['المخزون'] <= df['نقطة_إعادة_الطلب']].head(20)
+    if not critical_df.empty:
+        st.dataframe(critical_df[['المنتج', 'المخزون', 'نقطة_إعادة_الطلب', 'المورد']], use_container_width=True)
+    else:
+        st.success("جميع مستويات المخزون ضمن النطاق الآمن.")
 
 with tab3:
-    st.subheader("تقييم كفاءة الموردين")
-    supplier_stats = df.groupby('المورد').agg({
-        'صافي الربح': 'sum',
-        'زمن التوريد (أيام)': 'mean',
-        'نسبة المرتجعات (%)': 'mean'
-    }).reset_index()
-    
-    fig_sup = px.scatter(supplier_stats, x="زمن التوريد (أيام)", y="صافي الربح", 
-                         size="نسبة المرتجعات (%)", color="المورد", 
-                         title="قوة الموردين: الربحية مقابل سرعة التوريد (حجم الدائرة = نسبة المرتجعات)")
-    st.plotly_chart(fig_sup, use_container_width=True)
+    st.subheader("قاعدة البيانات الكاملة المعالجة")
+    st.dataframe(df, use_container_width=True)
 
 # --- 7. تصدير التقارير ---
 st.markdown("---")
-st.subheader("📑 تصدير البيانات النهائية")
-col_ex1, col_ex2 = st.columns(2)
+st.subheader("📑 تصدير التقارير")
 
-with col_ex1:
+# دالة تحويل البيانات إلى Excel بصيغة Bytes
+def to_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Data_Report')
-    st.download_button(
-        label="📥 تحميل التقرير الشامل (Excel)",
-        data=output.getvalue(),
-        file_name=f"Report_{datetime.now().strftime('%Y%m%d')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        df.to_excel(writer, index=False, sheet_name='Report')
+        # تنسيق بسيط للأعمدة
+        writer.close()
+    return output.getvalue()
 
-with col_ex2:
-    st.info("💡 نصيحة: المنتجات من الفئة 'A' هي المحرك الرئيسي لأرباحك، تأكد من عدم نفاذ مخزونها أبداً.")
+excel_data = to_excel(df)
 
-st.divider()
-st.caption(f"تم التطوير بواسطة م. منى محمد | Nexus AI BI Suite 2026 | نظام تجريبي آمن 100%")
+st.download_button(
+    label="📥 تحميل التقرير التحليلي الكامل (Excel)",
+    data=excel_data,
+    file_name=f"Report_{store_name}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+)
+
+st.caption("تم تطوير النظام بواسطة Nexus AI Enterprise 2026")
