@@ -4,31 +4,15 @@ import numpy as np
 import plotly.express as px
 import io
 
-# --- 1. إعدادات الهوية البصرية والواجهة ---
+# --- 1. إعدادات الهوية البصرية ---
 st.set_page_config(page_title="Nexus AI | Enterprise BI", page_icon="💎", layout="wide")
 
-# تصميم CSS احترافي يدعم اللغة العربية والجمالية العالية
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    .main { background-color: #f8fafc; }
-    .stMetric { 
-        background-color: #ffffff; 
-        border-radius: 12px; 
-        padding: 20px; 
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); 
-        border-top: 4px solid #2563eb; 
-    }
-    .notification-badge { 
-        background-color: #ef4444; 
-        color: white; 
-        padding: 4px 10px; 
-        border-radius: 50px; 
-        font-size: 12px; 
-        font-weight: bold;
-    }
-    .status-online { color: #10b981; font-size: 14px; font-weight: bold; }
+    .stMetric { background-color: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border-top: 4px solid #2563eb; }
+    .notification-badge { background-color: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 12px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,118 +21,105 @@ st.markdown("""
 def generate_demo_data(rows=1000):
     np.random.seed(42)
     categories = ['الأجهزة الذكية', 'العطور والجمال', 'الأزياء والملابس', 'الأثاث المنزلي', 'الأدوات الرياضية']
-    suppliers = [f'المورد العالمي {i}' for i in range(1, 21)]
+    suppliers = [f'المورد {i}' for i in range(1, 21)]
     
     data = {
         "المنتج": [f"SKU-{1000 + i}" for i in range(1, rows + 1)],
         "الفئة": np.random.choice(categories, rows),
         "المورد": np.random.choice(suppliers, rows),
-        "المخزون الحالي": np.random.randint(0, 300, rows),
-        "المبيعات الشهرية": np.random.randint(5, 500, rows),
-        "تكلفة الوحدة": np.random.uniform(50, 2000, rows).round(2),
-        "سعر البيع": np.random.uniform(100, 4000, rows).round(2),
-        "زمن التوريد (أيام)": np.random.randint(2, 30, rows),
-        "معدل المرتجعات": np.random.randint(0, 15, rows)
+        "المخزون": np.random.randint(0, 300, rows),
+        "المبيعات": np.random.randint(5, 500, rows),
+        "التكلفة": np.random.uniform(50, 2000, rows).round(2),
+        "السعر": np.random.uniform(100, 4000, rows).round(2),
+        "زمن_التوريد": np.random.randint(2, 30, rows)
     }
     df = pd.DataFrame(data)
-    # ضمان منطقية السعر
-    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) * 1.3
+    df['السعر'] = df[['التكلفة', 'السعر']].max(axis=1) * 1.3
     return df
 
 # --- 3. محرك التحليل الذكي ---
 def apply_business_logic(df, ship_cost, tax_pct, op_cost_pct):
     d = df.copy()
-    d['رسوم التشغيل والضرائب'] = d['سعر البيع'] * (tax_pct / 100)
-    d['التكلفة الكلية'] = d['تكلفة الوحدة'] + ship_cost + d['رسوم التشغيل والضرائب']
-    d['صافي الربح للقطعة'] = d['سعر البيع'] - d['التكلفة الكلية']
-    d['إجمالي صافي الربح'] = d['صافي الربح للقطعة'] * d['المبيعات الشهرية']
-    d['الربح الحقيقي بعد المصاريف'] = d['إجمالي صافي الربح'] * (1 - op_cost_pct / 100)
+    d['رسوم_التشغيل'] = d['السعر'] * (tax_pct / 100)
+    d['التكلفة_الكلية'] = d['التكلفة'] + ship_cost + d['رسوم_التشغيل']
+    d['صافي_الربح_للقطعة'] = d['السعر'] - d['التكلفة_الكلية']
+    d['إجمالي_الربح'] = d['صافي_الربح_للقطعة'] * d['المبيعات']
+    d['الربح_النهائي'] = d['إجمالي_الربح'] * (1 - op_cost_pct / 100)
     
-    avg_daily_sales = d['المبيعات الشهرية'] / 30
-    d['مخزون الأمان'] = (avg_daily_sales * 7).astype(int)
-    d['نقطة إعادة الطلب'] = (avg_daily_sales * d['زمن التوريد (أيام)']).astype(int) + d['مخزون الأمان']
+    avg_daily_sales = d['المبيعات'] / 30
+    d['نقطة_الطلب'] = ((avg_daily_sales * d['زمن_التوريد']) + 5).astype(int)
     
-    d = d.sort_values(by='إجمالي صافي الربح', ascending=False)
-    d['Cum_Profit_Pct'] = 100 * d['إجمالي صافي الربح'].cumsum() / (d['إجمالي صافي الربح'].sum() if d['إجمالي صافي الربح'].sum() != 0 else 1)
-    d['التصنيف'] = d['Cum_Profit_Pct'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
-    
+    d = d.sort_values(by='الربح_النهائي', ascending=False)
+    d['Cum_Pct'] = 100 * d['الربح_النهائي'].cumsum() / (d['الربح_النهائي'].sum() if d['الربح_النهائي'].sum() != 0 else 1)
+    d['التصنيف'] = d['Cum_Pct'].apply(lambda x: 'A' if x <= 70 else ('B' if x <= 90 else 'C'))
     return d
 
 # --- 4. الشريط الجانبي ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=60)
-    st.title("إعدادات النظام")
-    store_name = st.text_input("اسم النظام / المتجر", "Nexus Demo Store")
-    st.markdown(f"<span class='status-online'>● النظام متصل بالبيانات</span>", unsafe_allow_html=True)
-    
-    st.markdown("---")
-    with st.expander("💸 محاكي التكاليف"):
-        ship_cost = st.number_input("تكلفة الشحن (لكل قطعة)", 0.0, 100.0, 10.0)
-        tax_pct = st.slider("الضرائب والرسوم (%)", 0, 25, 15)
-        op_cost = st.slider("مصاريف تشغيلية عامة (%)", 0, 40, 10)
-    
-    rows_to_gen = st.slider("عدد المنتجات للتجربة", 100, 5000, 1000)
+    st.title("⚙️ الإعدادات")
+    store_name = st.text_input("اسم المتجر", "Nexus Demo")
+    ship = st.number_input("تكلفة الشحن", 0.0, 100.0, 10.0)
+    tax = st.slider("الضرائب %", 0, 25, 15)
+    op = st.slider("مصاريف تشغيل %", 0, 40, 10)
+    rows_num = st.slider("عدد المنتجات", 100, 2000, 500)
 
-raw_data = generate_demo_data(rows_to_gen)
-df = apply_business_logic(raw_data, ship_cost, tax_pct, op_cost)
+raw_df = generate_demo_data(rows_num)
+df = apply_business_logic(raw_df, ship, tax, op)
 
 # --- 5. الواجهة الرئيسية ---
-st.title(f"🚀 لوحة تحكم ذكاء الأعمال: {store_name}")
+st.title(f"🚀 لوحة تحكم: {store_name}")
 
-k1, k2, k3, k4 = st.columns(4)
-k1.metric("صافي الربح المتوقع", f"{int(df['الربح الحقيقي بعد المصاريف'].sum()):,} ر.س", "+5.2%")
-k2.metric("إجمالي قيمة المخزون", f"{int((df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()):,} ر.س")
-k3.metric("معدل دوران المخزون", f"{(df['المبيعات الشهرية'].sum() / (df['المخزون الحالي'].sum() if df['المخزون الحالي'].sum() != 0 else 1)):.2f}x")
-k4.metric("العائد على التكلفة", f"{((df['الربح الحقيقي بعد المصاريف'].sum() / ( (df['تكلفة الوحدة'] * df['المبيعات الشهرية']).sum() if (df['تكلفة الوحدة'] * df['المبيعات الشهرية']).sum() != 0 else 1) ) * 100):.1f}%")
+# KPIs
+k1, k2, k3 = st.columns(3)
+k1.metric("صافي الأرباح", f"{int(df['الربح_النهائي'].sum()):,} ر.س")
+k2.metric("قيمة المخزون", f"{int((df['المخزون'] * df['التكلفة']).sum()):,} ر.س")
+k3.metric("نواقص المخزن", len(df[df['المخزون'] <= df['نقطة_الطلب']]))
 
 st.divider()
-
-# التنبيهات
-critical_items = df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']]
-if not critical_items.empty:
-    st.markdown(f"### 🔔 منتجات حرجة <span class='notification-badge'>{len(critical_items)}</span>", unsafe_allow_html=True)
-    with st.expander("عرض تفاصيل النواقص"):
-        st.dataframe(critical_items[['المنتج', 'المخزون الحالي', 'نقطة إعادة الطلب', 'المورد']].head(10), use_container_width=True)
 
 # التبويبات
 tab1, tab2, tab3 = st.tabs(["📊 التحليل الاستراتيجي", "📦 إدارة المخزون", "🚚 أداء الموردين"])
 
 with tab1:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(px.pie(df, names='التصنيف', values='إجمالي صافي الربح', hole=0.4, title="تحليل ABC الربحي"), use_container_width=True)
-    with col2:
-        st.plotly_chart(px.bar(df.groupby('الفئة')['الربح الحقيقي بعد المصاريف'].sum().reset_index(), x='الفئة', y='الربح الحقيقي بعد المصاريف', title="الأرباح حسب الفئة"), use_container_width=True)
+    c1, c2 = st.columns(2)
+    with c1:
+        st.plotly_chart(px.pie(df, names='التصنيف', values='الربح_النهائي', hole=0.4, title="توزيع ABC"), use_container_width=True)
+    with c2:
+        st.plotly_chart(px.bar(df.groupby('الفئة')['الربح_النهائي'].sum().reset_index(), x='الفئة', y='الربح_النهائي', title="الأرباح حسب الفئة"), use_container_width=True)
 
 with tab2:
-    st.plotly_chart(px.scatter(df.head(200), x="المخزون الحالي", y="نقطة إعادة الطلب", size="المبيعات الشهرية", color="التصنيف", hover_name="المنتج"), use_container_width=True)
-    st.dataframe(df[['المنتج', 'الفئة', 'المخزون الحالي', 'مخزون الأمان', 'نقطة إعادة الطلب']].head(50), use_container_width=True)
+    st.dataframe(df[['المنتج', 'الفئة', 'المخزون', 'نقطة_الطلب', 'التصنيف']].head(50), use_container_width=True)
 
 with tab3:
-    sup_analysis = df.groupby('المورد').agg({'زمن التوريد (أيام)': 'mean', 'الربح الحقيقي بعد المصاريف': 'sum', 'المنتج': 'count'}).reset_index()
-    st.plotly_chart(px.bubble(sup_analysis, x="زمن التوريد (أيام)", y="الربح الحقيقي بعد المصاريف", size="المنتج", color="المورد", title="تقييم الموردين"), use_container_width=True)
+    st.subheader("🚚 تقييم الموردين")
+    # الإصلاح هنا: تبسيط عملية الـ Grouping لضمان وجود الأعمدة
+    sup_df = df.groupby('المورد').agg({
+        'زمن_التوريد': 'mean',
+        'الربح_النهائي': 'sum',
+        'المنتج': 'count'
+    }).reset_index()
+    
+    # رسم الفقاعات (Bubble Chart) - تم إصلاح المسميات هنا
+    fig_sup = px.scatter(
+        sup_df, 
+        x="زمن_التوريد", 
+        y="الربح_النهائي",
+        size="المنتج", 
+        color="المورد",
+        title="الموردين: سرعة التوريد مقابل الربحية",
+        labels={"زمن_التوريد": "متوسط أيام التوريد", "الربح_النهائي": "إجمالي الأرباح"}
+    )
+    st.plotly_chart(fig_sup, use_container_width=True)
 
-# --- 6. تصدير التقارير (الإصلاح الجذري للخطأ) ---
+# --- 6. تصدير التقارير (إصلاح Excel) ---
 st.divider()
-st.subheader("📑 مركز التقارير")
-
-@st.cache_data
-def convert_df_to_excel(df_to_export):
+def convert_to_excel(df_to_save):
     output = io.BytesIO()
-    # استخدام engine='openpyxl' بدلاً من xlsxwriter لضمان الاستقرار
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_to_export.to_excel(writer, index=False, sheet_name='Report')
+        df_to_save.to_excel(writer, index=False, sheet_name='Report')
     return output.getvalue()
 
-try:
-    excel_data = convert_df_to_excel(df)
-    st.download_button(
-        label="📥 تحميل التقرير الشامل (Excel)",
-        data=excel_data,
-        file_name=f"{store_name}_Analysis.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-except Exception as e:
-    st.error(f"حدث خطأ فني في استخراج الملف: {e}")
+excel_file = convert_to_excel(df)
+st.download_button("📥 تحميل تقرير Excel", data=excel_file, file_name="Nexus_Report.xlsx")
 
-st.caption(f"تطوير: منى محمد | Nexus AI Enterprise 2026")
+st.caption("تطوير: منى محمد | 2026")
