@@ -1,55 +1,50 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 
-# إعدادات الصفحة الأساسية (تظهر في كل الصفحات)
-st.set_page_config(page_title="Nexus AI | Enterprise", page_icon="🚀", layout="wide")
+# الإعدادات
+st.set_page_config(page_title="Nexus AI | Enterprise", page_icon="📊", layout="wide")
 
-# CSS موحد لكل الصفحات لجعل التصميم متناسق
+# CSS متقدم للبطاقات والخطوط
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    [data-testid="stMetricValue"] { font-size: 28px; color: #10b981; }
-    .stDataFrame { border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .kpi-card {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        text-align: center;
+        border-right: 5px solid #10b981;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🚀 لوحة التحكم الرئيسية")
-st.subheader("مرحباً بك في منصة Nexus للتحليل الذكي")
+st.title("🚀 مرحباً بك في Nexus BI")
+st.write("المنصة المتكاملة لتحليل بياناتك التجارية بذكاء.")
 
-# --- محرك رفع البيانات وحفظها في الـ Session State ---
-st.sidebar.header("📁 مركز البيانات")
-uploaded_file = st.sidebar.file_uploader("ارفع ملف مبيعاتك (Excel/CSV)", type=['xlsx', 'csv'])
+# رفع البيانات
+with st.sidebar:
+    st.image("https://cdn-icons-png.flaticon.com/512/1548/1548914.png", width=80)
+    st.header("إعدادات البيانات")
+    uploaded_file = st.file_uploader("ارفع ملفك هنا", type=['xlsx', 'csv'])
 
 if uploaded_file:
-    # قراءة البيانات
-    if uploaded_file.name.endswith('xlsx'):
-        df = pd.read_excel(uploaded_file)
-    else:
-        df = pd.read_csv(uploaded_file)
-    
-    # حفظ البيانات في "ذاكرة الجلسة" لتراها الصفحات الأخرى
+    df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
     st.session_state['main_df'] = df
-    st.success("✅ تم تحميل البيانات بنجاح! انتقل للصفحات الجانبية للتحليل.")
-else:
-    st.info("💡 يرجى رفع ملف من القائمة الجانبية للبدء، أو سيتم استخدام بيانات تجريبية.")
-    # بيانات افتراضية إذا لم يرفع المستخدم ملفاً
-    df_demo = pd.DataFrame({
-        "المنتج": ["منتج A", "منتج B"],
-        "المبيعات": [100, 200],
-        "التكلفة": [50, 80]
-    })
-    st.session_state['main_df'] = df_demo
-
-# عرض ملخص سريع في الصفحة الرئيسية
-if 'main_df' in st.session_state:
-    df = st.session_state['main_df']
-    col1, col2, col3 = st.columns(3)
-    col1.metric("عدد المنتجات", len(df))
-    col2.metric("إجمالي السجلات", df.shape[0])
-    col3.metric("حالة النظام", "متصل ✅")
+    st.sidebar.success("✅ البيانات جاهزة")
     
-    st.markdown("---")
-    st.write("### معاينة سريعة للبيانات:")
-    st.dataframe(df.head(10), use_container_width=True)
+    # عرض إحصائيات سريعة (KPIs) بشكل جمالي
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f"<div class='kpi-card'><h3>📦 المنتجات</h3><h2>{len(df)}</h2></div>", unsafe_allow_html=True)
+    with c2:
+        # نفترض وجود عمود مبيعات، إذا لم يوجد نضع 0
+        sales_val = df['المبيعات'].sum() if 'المبيعات' in df.columns else 0
+        st.markdown(f"<div class='kpi-card' style='border-right-color:#3b82f6;'><h3>💰 إجمالي المبيعات</h3><h2>{sales_val:,.0f}</h2></div>", unsafe_allow_html=True)
+    with c3:
+        st.markdown(f"<div class='kpi-card' style='border-right-color:#f59e0b;'><h3>🕒 حالة التحديث</h3><h2>لحظي</h2></div>", unsafe_allow_html=True)
+
+    st.info("💡 نصيحة: انتقل إلى 'التحليل المالي' في القائمة الجانبية لرؤية الرسوم البيانية.")
+else:
+    st.warning("👈 يرجى رفع ملف من القائمة الجانبية للبدء.")
