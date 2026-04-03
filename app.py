@@ -4,223 +4,184 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
+from streamlit_option_menu import option_menu
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from streamlit_lottie import st_lottie
+import requests
 
-# --- 1. إعدادات الهوية البصرية (اللون الفاتح الملكي) ---
-st.set_page_config(page_title="Nexus SCM Pro | Store Edition", page_icon="📈", layout="wide")
+# --- 1. إعدادات الصفحة والهوية البصرية ---
+st.set_page_config(page_title="Nexus SCM Pro | Global Edition", page_icon="🌐", layout="wide")
 
+# دالة لتحميل رسوم Lottie
+def load_lottieurl(url):
+    r = requests.get(url)
+    if r.status_code != 200: return None
+    return r.json()
+
+lottie_ai = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_gssu2dkm.json") # AI animation
+lottie_success = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_pqnfmone.json") # Success check
+
+# حقن الـ CSS المطور
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
-    
-    :root {
-        --primary: #2563eb;
-        --bg: #f8fafc;
-        --text: #1e293b;
-        --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
     
     html, body, [class*="css"] {
-        font-family: 'IBM Plex Sans Arabic', sans-serif;
+        font-family: 'Cairo', sans-serif;
         direction: rtl; text-align: right;
-        background-color: var(--bg);
-        color: var(--text);
+        background-color: #f0f2f6;
     }
 
-    /* تصميم البطاقات المطور */
-    .exec-card {
+    /* تصميم البطاقات العالمية */
+    .metric-card {
         background: white;
-        border: 1px solid #e2e8f0;
+        padding: 25px;
         border-radius: 15px;
-        padding: 20px;
-        box-shadow: var(--card-shadow);
-        transition: 0.3s;
+        border-left: 5px solid #2563eb;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
     }
-    .exec-card:hover {
+    .metric-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-        border-color: var(--primary);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
     }
 
-    /* بنر الذكاء الاصطناعي */
-    .ai-box {
-        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-        border-right: 5px solid var(--primary);
+    /* تحسين الهيدر */
+    .stHeader { background: rgba(255,255,255,0); }
+    
+    /* تخصيص التنبيهات */
+    .ai-insight-box {
+        background: linear-gradient(90deg, #ffffff 0%, #f1f5f9 100%);
+        border-right: 5px solid #8b5cf6;
         padding: 20px;
-        border-radius: 12px;
-        margin-bottom: 25px;
-        color: #1e3a8a;
+        border-radius: 15px;
+        margin-bottom: 20px;
     }
-
-    /* التبويبات */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        background: white;
-        border-radius: 10px 10px 0 0;
-        border: 1px solid #e2e8f0;
-        padding: 10px 30px;
-    }
-    .stTabs [aria-selected="true"] {
-        background: var(--primary) !important;
-        color: white !important;
-    }
-
-    /* إخفاء شعارات ستريم ليت الافتراضية */
-    #MainMenu, footer, header {visibility: hidden;}
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# --- 2. محركات البيانات (Data Engines) ---
+# --- 2. محركات البيانات ---
 @st.cache_data
-def load_all_data():
-    # بيانات الإيرادات والمصاريف
+def get_data():
     df_exec = pd.DataFrame({
         'الشهر': ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"],
         'الإيرادات': [250000, 280000, 240000, 310000, 295000, 340000],
         'المصاريف': [180000, 190000, 175000, 210000, 205000, 220000]
     })
     
-    # بيانات التنبؤ بالطلب (30 يوم قادم)
-    dates = [(datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
-    df_fore = pd.DataFrame({
-        'التاريخ': dates, 
-        'الطلب': [100 + (i*1.2) + np.random.randint(-10,10) for i in range(30)],
-        'المخزون_المتوقع': [500 - (i*10) for i in range(30)]
-    })
-    
-    # بيانات الموردين
-    df_sup = pd.DataFrame({
-        'المورد': ['مورد التقنية', 'مصنع الخليج', 'توريد آسيا'],
-        'الجودة': [95, 80, 88],
-        'زمن_الشحن': [5, 12, 7],
-        'الالتزام': [98, 75, 90]
-    })
-    
-    # بيانات المخزون التفصيلي (ABC)
     df_inv = pd.DataFrame({
-        'المنتج': [f'منتج {i}' for i in range(1, 21)],
-        'المبيعات': np.random.randint(1000, 50000, 20),
-        'المخزون': np.random.randint(5, 100, 20)
-    }).sort_values('المبيعات', ascending=False)
+        'المنتج': [f'منتج {i}' for i in range(1, 11)],
+        'الفئة': np.random.choice(['A', 'B', 'C'], 10),
+        'المخزون': np.random.randint(2, 100, 10),
+        'السعر': np.random.randint(50, 500, 10),
+        'الحالة': 'مستقر'
+    })
+    # تحديد المنتجات الحرجة
+    df_inv.loc[df_inv['المخزون'] < 10, 'الحالة'] = 'حرِج'
     
-    return df_exec, df_fore, df_sup, df_inv
+    return df_exec, df_inv
 
-df_exec, df_fore, df_sup, df_inv = load_all_data()
+df_exec, df_inv = get_data()
 
-# --- 3. الهيكل الرئيسي (Sidebar) ---
-with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/5968/5968204.png", width=50) 
-    st.title("Nexus Store Pro")
-    st.markdown("---")
-    st.write("👤 **المدير:** منى محمد")
-    st.success("🟢 حالة المتجر: متصل")
-    st.markdown("---")
-    st.write("🛠️ **إجراءات سريعة:**")
-    if st.button("➕ إضافة طلب شراء"): st.toast("تم فتح نافذة المشتريات")
-    if st.button("📄 تصدير تقرير اليوم"): st.balloons()
-    st.markdown("---")
-    st.button("🔴 تسجيل الخروج")
+# --- 3. شريط التنقل العلوي (Navigation) ---
+selected = option_menu(
+    menu_title=None,
+    options=["الرئيسية", "المخزون الذكي", "التقارير", "الإعدادات"],
+    icons=["house", "box-seam", "graph-up", "gear"],
+    menu_icon="cast",
+    default_index=0,
+    orientation="horizontal",
+    styles={
+        "container": {"padding": "0!important", "background-color": "#ffffff", "border-radius": "0px"},
+        "icon": {"color": "#2563eb", "font-size": "18px"}, 
+        "nav-link": {"font-size": "16px", "text-align": "center", "margin":"0px", "--hover-color": "#eee"},
+        "nav-link-selected": {"background-color": "#2563eb"},
+    }
+)
 
-# --- 4. واجهة المستخدم (Main UI) ---
-st.markdown("<h1 style='font-weight:800; color:#1e293b;'>🚀 لوحة تحكم متجري المتكاملة</h1>", unsafe_allow_html=True)
+# --- 4. محتوى الصفحات ---
 
-# بنر الذكاء الاصطناعي (AI Insight Box)
-st.markdown("""
-    <div class="ai-box">
-        <h4 style="margin:0 0 10px 0;">🤖 رؤى Nexus AI لليوم:</h4>
-        <p style="margin:0;">تحليل المبيعات يشير لارتفاع الطلب بنسبة <b>15%</b> الأسبوع القادم. 
-        يُنصح بزيادة مخزون <b>"منتج 1"</b> و <b>"منتج 3"</b> لتفادي أي عجز محتمل.</p>
-    </div>
-""", unsafe_allow_html=True)
-
-# التبويبات (Tabs)
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "🏢 برج المراقبة", "🔮 التنبؤ الذكي", "📦 إدارة المخزون", "🚚 الموردين", "🔄 المرتجعات"
-])
-
-# --- القسم 1: برج المراقبة ---
-with tab1:
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
-        st.metric("إجمالي السيولة", "340,000 ر.س", "12%")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with m2:
-        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
-        st.metric("رأس مال المخزون", "1.2M ر.س", "-4%")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with m3:
-        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
-        st.metric("دقة التوصيل", "96.5%", "1.2%")
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+if selected == "الرئيسية":
     st.markdown("<br>", unsafe_allow_html=True)
-    fig_exec = go.Figure()
-    fig_exec.add_trace(go.Scatter(x=df_exec['الشهر'], y=df_exec['الإيرادات'], name='الإيرادات', line=dict(color='#2563eb', width=4), fill='tozeroy'))
-    fig_exec.add_trace(go.Scatter(x=df_exec['الشهر'], y=df_exec['المصاريف'], name='المصاريف', line=dict(color='#ef4444', width=2)))
-    fig_exec.update_layout(title="تحليل التدفق النقدي (الستة أشهر الماضية)", plot_bgcolor='white')
-    st.plotly_chart(fig_exec, use_container_width=True)
-
-# --- القسم 2: التنبؤ الذكي ---
-with tab2:
-    st.subheader("🔮 توقعات الطلب لـ 30 يوماً القادمة")
-    c_f1, c_f2 = st.columns([7, 3])
     
-    with c_f1:
-        fig_f = px.line(df_fore, x='التاريخ', y='الطلب', markers=True, title="منحنى الطلب المتوقع")
-        fig_f.update_traces(line_color='#2563eb')
-        st.plotly_chart(fig_f, use_container_width=True)
-    
-    with c_f2:
-        st.markdown("""<div class='exec-card' style='border-right: 5px solid #f59e0b;'>
-            <h4>⚠️ تنبيه نفاذ مخزون</h4>
-            <p>منتج <b>SKU-55</b> مرشح للنفاذ بتاريخ <b>12 إبريل</b>.</p>
-            <button style='width:100%; padding:10px; background:#2563eb; color:white; border:none; border-radius:5px;'>طلب بضاعة الآن</button>
+    # Grid Layout: نظام الأعمدة المتقدم للبطاقات
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(f"""<div class="metric-card">
+            <p style='color:#64748b; font-size:14px; margin-bottom:5px;'>إجمالي المبيعات</p>
+            <h2 style='margin:0; color:#1e293b;'>340,000 ر.س</h2>
+            <span style='color:#10b981; font-size:12px;'>▲ +12% من الشهر الماضي</span>
+        </div>""", unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""<div class="metric-card" style='border-left-color: #f59e0b;'>
+            <p style='color:#64748b; font-size:14px; margin-bottom:5px;'>قيمة المخزون</p>
+            <h2 style='margin:0; color:#1e293b;'>1.2M ر.س</h2>
+            <span style='color:#ef4444; font-size:12px;'>▼ -4.2% تنظيف مخزون</span>
+        </div>""", unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""<div class="metric-card" style='border-left-color: #10b981;'>
+            <p style='color:#64748b; font-size:14px; margin-bottom:5px;'>طلبات قيد التنفيذ</p>
+            <h2 style='margin:0; color:#1e293b;'>85 طلب</h2>
+            <span style='color:#10b981; font-size:12px;'>📦 جاهز للشحن</span>
+        </div>""", unsafe_allow_html=True)
+    with col4:
+        st.markdown(f"""<div class="metric-card" style='border-left-color: #8b5cf6;'>
+            <p style='color:#64748b; font-size:14px; margin-bottom:5px;'>دقة التنبؤ</p>
+            <h2 style='margin:0; color:#1e293b;'>94%</h2>
+            <span style='color:#2563eb; font-size:12px;'>مدعوم بـ Nexus AI</span>
         </div>""", unsafe_allow_html=True)
 
-# --- القسم 3: إدارة المخزون (ABC Analysis) ---
-with tab3:
-    st.subheader("📦 تحليل ABC وتصنيف المنتجات")
-    col_abc1, col_abc2 = st.columns(2)
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    with col_abc1:
-        # حساب ABC وهمي سريع
-        df_inv['النسبة'] = (df_inv['المبيعات'] / df_inv['المبيعات'].sum()) * 100
-        fig_pie = px.pie(names=['الفئة A (حيوي)', 'الفئة B (متوسط)', 'الفئة C (ثانوي)'], values=[70, 20, 10], 
-                         hole=0.5, title="توزيع قيمة المخزون", color_discrete_sequence=['#1e40af', '#3b82f6', '#94a3b8'])
-        st.plotly_chart(fig_pie, use_container_width=True)
+    # القسم السفلي: الرسم البياني وتنبيهات AI
+    c1, c2 = st.columns([7, 3])
+    
+    with c1:
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df_exec['الشهر'], y=df_exec['الإيرادات'], name='المبيعات', fill='tozeroy', line_color='#2563eb'))
+        fig.update_layout(title="الأداء المالي السنوي", template="plotly_white", height=400)
+        st.plotly_chart(fig, use_container_width=True)
         
-    with col_abc2:
-        st.write("🔍 **أكثر المنتجات ربحية (Top Tier):**")
-        st.dataframe(df_inv[['المنتج', 'المبيعات', 'المخزون']].head(5), use_container_width=True)
+    with c2:
+        st.markdown("<div class='ai-insight-box'>", unsafe_allow_html=True)
+        st_lottie(lottie_ai, height=100, key="ai_icon")
+        st.subheader("رؤى الذكاء الاصطناعي")
+        st.info("هناك فرصة لزيادة المبيعات بنسبة 10% إذا تم توفير منتج 'أ' بكميات أكبر.")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- القسم 4: الموردين والشحن ---
-with tab4:
-    st.subheader("🚚 تقييم الموردين واللوجستيات")
-    st.table(df_sup)
+elif selected == "المخزون الذكي":
+    st.subheader("📦 إدارة المخزون المتقدمة")
     
-    fig_sup = px.scatter(df_sup, x='زمن_الشحن', y='الجودة', size='الالتزام', color='المورد', 
-                         title="مصفوفة أداء الموردين", text='المورد')
-    fig_sup.update_layout(plot_bgcolor='white')
-    st.plotly_chart(fig_sup, use_container_width=True)
-
-# --- القسم 5: المرتجعات والتقارير ---
-with tab5:
-    st.subheader("🔄 إدارة المرتجعات والهدر المالي")
-    col_r1, col_r2 = st.columns(2)
+    # استخدام AgGrid بدلاً من جداول ستريم ليت العادية
+    gb = GridOptionsBuilder.from_dataframe(df_inv)
+    gb.configure_pagination(paginationAutoPageSize=True) # تفعيل الترقيم
+    gb.configure_side_bar() # تفعيل الفلاتر الجانبية
+    gb.configure_selection('multiple', use_checkbox=True)
     
-    with col_r1:
-        st.bar_chart({'عيب مصنعي': 20, 'مقاس خاطئ': 50, 'تأخر شحن': 15, 'لم يعجب العميل': 10})
-        
-    with col_r2:
-        st.markdown("""<div class='exec-card'>
-            <h4>📑 مركز التقارير الجاهزة</h4>
-            <p>يمكنك تحميل ملخص العمليات الشهري بصيغة PDF.</p>
-            <hr>
-            <p>✅ تقرير المخزون جاهز</p>
-            <p>✅ تقرير الموردين جاهز</p>
-        </div>""", unsafe_allow_html=True)
-        st.button("📥 تحميل التقرير النهائي (Full Report)")
+    # تلوين الخلايا (تنبيه المخزون المنخفض)
+    cellsytle_jscode = """
+    function(params) {
+        if (params.value < 10) {
+            return { 'color': 'white', 'backgroundColor': '#ef4444' };
+        }
+    }
+    """
+    gb.configure_column("المخزون", cellStyle=cellsytle_jscode)
+    grid_options = gb.build()
+    
+    AgGrid(
+        df_inv, 
+        gridOptions=grid_options,
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        allow_unsafe_jscode=True,
+        theme='balham', # ثيم احترافي
+    )
+    
+    if st.button("تحديث المخزون"):
+        with st.spinner("جاري المزامنة..."):
+            st_lottie(lottie_success, height=150)
+            st.success("تم تحديث البيانات بنجاح!")
 
-# --- التذييل ---
+# --- التذييل (Footer) ---
 st.markdown("---")
-st.caption(f"Nexus BI Solution v3.0 | جميع الحقوق محفوظة لـ {STORE_NAME if 'STORE_NAME' in locals() else 'متجري'} 2026")
+st.caption(f"Nexus SCM Pro v3.0 | 2026 Edition | تم التصميم بواسطة منى محمد")
