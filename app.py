@@ -4,48 +4,91 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- 1. إعدادات النظام ---
-st.set_page_config(page_title="Nexus AI - Supply Chain", layout="wide")
+# --- 1. إعدادات الهوية البصرية (Branding & UI) ---
+st.set_page_config(
+    page_title="Nexus Enterprise AI",
+    page_icon="🦅",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# تصميم الواجهة باستخدام CSS لضمان مظهر "Enterprise"
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    .main { background-color: #0f172a; color: #f8fafc; }
-    .stMetric { background: #1e293b; padding: 20px; border-radius: 15px; border: 1px solid #334155; }
+    
+    /* الخطوط والاتجاهات */
+    html, body, [class*="css"] { 
+        font-family: 'Cairo', sans-serif; 
+        text-align: right; 
+        direction: rtl;
+    }
+    
+    /* الخلفية العامة */
+    .main { background-color: #0f172a; }
+    
+    /* تصميم بطاقات المؤشرات (Metrics) */
+    [data-testid="stMetricValue"] { font-size: 28px; color: #3b82f6; }
+    .stMetric { 
+        background: #1e293b; 
+        padding: 20px; 
+        border-radius: 15px; 
+        border: 1px solid #334155;
+        border-bottom: 4px solid #3b82f6;
+        transition: 0.3s;
+    }
+    .stMetric:hover { transform: translateY(-5px); border-color: #60a5fa; }
+    
+    /* تصميم القائمة الجانبية */
+    section[data-testid="stSidebar"] { background-color: #1e293b !important; }
+    
+    /* أزرار الرفع والعمليات */
+    .stButton>button { 
+        width: 100%; border-radius: 12px; height: 3.5em; 
+        background: linear-gradient(90deg, #3b82f6, #1d4ed8); 
+        color: white; font-weight: bold; border: none;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. دالة الحسابات الذكية (لضمان عدم حدوث خطأ عند رفع أي ملف) ---
+# --- 2. محرك العمليات الحسابية الذكي ---
 def process_data(df_input):
-    # توحيد أسماء الأعمدة لتجنب الأخطاء
-    mapping = {
-        'المنتج': 'المنتج', 'المخزون': 'المخزون الحالي', 'المبيعات': 'المبيعات الشهرية',
-        'التكلفة': 'تكلفة الوحدة', 'السعر': 'سعر البيع', 'المرتجعات': 'معدل المرتجعات (%)'
-    }
-    # التأكد من وجود الأعمدة الأساسية للحسابات
-    if 'إجمالي الربح' not in df_input.columns:
-        df_input['إجمالي الربح'] = (df_input['سعر البيع'] - df_input['تكلفة الوحدة']) * df_input['المبيعات الشهرية']
+    d = df_input.copy()
     
-    # تصنيف ABC
-    df_input = df_input.sort_values(by='إجمالي الربح', ascending=False)
-    df_input['Cumulative_Profit'] = df_input['إجمالي الربح'].cumsum()
-    total_p = df_input['إجمالي الربح'].sum()
-    df_input['Profit_%'] = (df_input['Cumulative_Profit'] / total_p) * 100
-    df_input['التصنيف'] = df_input['Profit_%'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
+    # 1. حساب الربح إذا لم يكن موجوداً
+    if 'إجمالي الربح' not in d.columns:
+        # محاولة توقع أسماء الأعمدة بالإنجليزية أو العربية
+        price_col = 'سعر البيع' if 'سعر البيع' in d.columns else 'Price'
+        cost_col = 'تكلفة الوحدة' if 'تكلفة الوحدة' in d.columns else 'Cost'
+        sales_col = 'المبيعات الشهرية' if 'المبيعات الشهرية' in d.columns else 'Sales'
+        
+        if all(col in d.columns for col in [price_col, cost_col, sales_col]):
+            d['إجمالي الربح'] = (d[price_col] - d[cost_col]) * d[sales_col]
+        else:
+            d['إجمالي الربح'] = 0 # قيمة افتراضية في حال نقص البيانات
     
-    # حساب EOQ (الكمية الاقتصادية)
-    df_input['الكمية المثالية للطلب (EOQ)'] = np.sqrt((2 * (df_input['المبيعات الشهرية']*12) * 150) / (df_input['تكلفة الوحدة'] * 0.2)).replace([np.inf, -np.inf], 0).fillna(0).astype(int)
+    # 2. تصنيف ABC الاحترافي
+    d = d.sort_values(by='إجمالي الربح', ascending=False)
+    d['Cumulative_Profit'] = d['إجمالي الربح'].cumsum()
+    total_p = d['إجمالي الربح'].sum() if d['إجمالي الربح'].sum() != 0 else 1
+    d['Profit_%'] = (d['Cumulative_Profit'] / total_p) * 100
+    d['التصنيف'] = d['Profit_%'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
     
-    return df_input
+    # 3. حساب EOQ (الكمية الاقتصادية)
+    d['الكمية المثالية للطلب (EOQ)'] = np.sqrt(
+        (2 * (d.get('المبيعات الشهرية', 100) * 12) * 150) / 
+        (d.get('تكلفة الوحدة', 50) * 0.2 + 0.1)
+    ).replace([np.inf, -np.inf], 0).fillna(0).astype(int)
+    
+    return d
 
-# --- 3. توليد البيانات الافتراضية ---
+# --- 3. توليد البيانات الافتراضية الفخمة ---
 @st.cache_data
-def load_massive_data():
+def get_demo_data():
     np.random.seed(42)
     data = {
         "المنتج": [f"منتج {i}" for i in range(1, 51)],
-        "الفئة": [np.random.choice(["إلكترونيات", "أزياء", "منزل", "عطور"]) for _ in range(50)],
+        "الفئة": [np.random.choice(["إلكترونيات", "أزياء", "عطور", "منزل"]) for _ in range(50)],
         "المخزون الحالي": np.random.randint(5, 500, 50),
         "المبيعات الشهرية": np.random.randint(50, 1000, 50),
         "تكلفة الوحدة": np.random.randint(20, 2000, 50),
@@ -53,60 +96,81 @@ def load_massive_data():
         "زمن التوريد (أيام)": np.random.randint(3, 30, 50),
         "معدل المرتجعات (%)": np.random.uniform(1, 20, 50).round(1)
     }
-    return process_data(pd.DataFrame(data))
+    return pd.DataFrame(data)
 
-# --- 4. إدارة البيانات المرفوعة ---
-st.title("🌐 Nexus AI: Global Supply Chain Control")
+# --- 4. هيكل التطبيق (The Interface) ---
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=100)
+st.sidebar.title("🦅 Nexus Control")
 
-uploaded_file = st.sidebar.file_uploader("ارفع ملف بيانات متجرك (Excel/CSV)", type=['xlsx', 'csv'])
+# رفع الملفات
+uploaded_file = st.sidebar.file_uploader("📥 ارفع بيانات متجرك (Excel/CSV)", type=['xlsx', 'csv'])
 
 if uploaded_file:
     try:
-        if uploaded_file.name.endswith('xlsx'):
-            df = pd.read_excel(uploaded_file)
-        else:
-            df = pd.read_csv(uploaded_file)
-        df = process_data(df) # معالجة الملف المرفوع فوراً
-        st.sidebar.success("تم تحليل ملفك بنجاح!")
-    except Exception as e:
-        st.sidebar.error(f"خطأ في الملف: {e}")
-        df = load_massive_data()
+        raw_df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
+        df = process_data(raw_df)
+        st.sidebar.success("تم تحليل الملف بنجاح!")
+    except:
+        st.sidebar.error("خطأ في تنسيق الملف، تم العودة للبيانات الافتراضية.")
+        df = process_data(get_demo_data())
 else:
-    df = load_massive_data()
+    df = process_data(get_demo_data())
 
-# --- 5. عرض الأقسام ---
-menu = st.sidebar.selectbox("اختر القسم", ["لوحة التحكم العامة", "تحليل المخزون الذكي", "رادار التسويق والربحية"])
+# القائمة الرئيسية
+menu = st.sidebar.selectbox("القسم الحالي", ["لوحة التحكم العامة", "تحليل المخزون والطلب", "رادار التسويق والربحية"])
 
+# --- القسم الأول: لوحة التحكم ---
 if menu == "لوحة التحكم العامة":
+    st.title("🌐 Nexus AI Global Command")
+    st.markdown("### إدارة الأداء اللوجستي والمالي")
+    
+    # بطاقات المؤشرات النشطة
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("إجمالي قيمة المخزون", f"{int((df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()):,} ر.س")
-    c2.metric("الأرباح الشهرية", f"{int(df['إجمالي الربح'].sum()):,} ر.س")
-    c3.metric("منتجات الفئة A", len(df[df['التصنيف'] == 'A (حيوي)']))
-    c4.metric("متوسط المرتجعات", f"{df['معدل المرتجعات (%)'].mean():.1f}%")
+    c1.metric("إجمالي المبيعات", f"{(df['المبيعات الشهرية'] * df['سعر البيع']).sum():,} ر.س")
+    c2.metric("الأرباح المتوقعة", f"{int(df['إجمالي الربح'].sum()):,} ر.س")
+    c3.metric("معدل المرتجعات", f"{df['معدل المرتجعات (%)'].mean():.1f}%")
+    c4.metric("منتجات الفئة A", len(df[df['التصنيف'] == 'A (حيوي)']))
 
     st.markdown("---")
-    col_left, col_right = st.columns([2, 1])
-    with col_left:
-        st.subheader("📈 تحليل توزيع الأرباح (ABC Analysis)")
-        fig_abc = px.pie(df, names='التصنيف', values='إجمالي الربح', hole=0.5)
-        st.plotly_chart(fig_abc, use_container_width=True)
     
-    with col_right:
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        st.subheader("📊 توزيع الربحية حسب تصنيف ABC")
+        fig_abc = px.pie(df, names='التصنيف', values='إجمالي الربح', hole=0.6, 
+                         color_discrete_sequence=['#3b82f6', '#1e4ed8', '#1e293b'])
+        fig_abc.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_abc, use_container_width=True)
+        
+    with col_b:
         st.subheader("🚨 تنبيهات المخزن")
-        stockouts = df[df['المخزون الحالي'] < (df['المبيعات الشهرية'] / 4)]
-        if not stockouts.empty:
-            for _, row in stockouts.head(5).iterrows():
-                st.error(f"**نفاذ:** {row['المنتج']}")
+        danger = df[df['المخزون الحالي'] < (df['المبيعات الشهرية'] / 4)]
+        if not danger.empty:
+            for _, row in danger.head(5).iterrows():
+                st.warning(f"**نفاذ وشيك:** {row['المنتج']}")
         else:
-            st.success("المخزون كافٍ لجميع المنتجات")
+            st.success("المخزون مستقر")
 
-elif menu == "تحليل المخزون الذكي":
-    st.subheader("📦 إدارة الطلب الاقتصادي (EOQ)")
+# --- القسم الثاني: المخزون ---
+elif menu == "تحليل المخزون والطلب":
+    st.title("📦 Smart Inventory Engine")
     st.dataframe(df[['المنتج', 'المخزون الحالي', 'الكمية المثالية للطلب (EOQ)', 'التصنيف']], use_container_width=True)
-    fig_eoq = px.scatter(df, x="المخزون الحالي", y="الكمية المثالية للطلب (EOQ)", color="التصنيف", size="إجمالي الربح")
+    
+    fig_eoq = px.scatter(df, x="المخزون الحالي", y="الكمية المثالية للطلب (EOQ)", size="إجمالي الربح", 
+                         color="التصنيف", hover_name="المنتج", template="plotly_dark")
     st.plotly_chart(fig_eoq, use_container_width=True)
 
-# عرض البيانات بالأسفل دائماً للمعاينة
-with st.expander("📂 عرض قاعدة البيانات الكاملة"):
+# --- القسم الثالث: التسويق ---
+elif menu == "رادار التسويق والربحية":
+    st.title("🎯 Marketing & Profit Radar")
+    st.info("💡 نصيحة: ركز ميزانيتك الإعلانية على المنتجات المصنفة (A) ذات المرتجعات المنخفضة.")
+    
+    fig_mkt = px.bar(df.head(15), x="المنتج", y="إجمالي الربح", color="معدل المرتجعات (%)", 
+                     title="أكثر 15 منتجاً ربحية", template="plotly_dark")
+    st.plotly_chart(fig_mkt, use_container_width=True)
+
+# تذييل الصفحة
+st.markdown("---")
+with st.expander("📂 معاينة البيانات الخام"):
     st.write(df)
+
+st.caption("Powered by Nexus AI Framework - الإصدار الاحترافي لمنى محمد")
