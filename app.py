@@ -1,158 +1,451 @@
 import streamlit as st
+
 import pandas as pd
+
 import numpy as np
+
 import plotly.express as px
-import io
+
+import plotly.graph_objects as go
+
 from datetime import datetime, timedelta
 
-# --- 1. إعدادات الهوية البصرية والوضع الداكن ---
-st.set_page_config(page_title="Nexus AI | Enterprise BI", page_icon="💎", layout="wide")
 
-# تصميم CSS احترافي يدعم التوجه RTL والجمالية العالية
+
+# --- 1. إعدادات الهوية البصرية (اللون الفاتح الملكي) ---
+
+st.set_page_config(page_title="Nexus SCM Pro | Store Edition", page_icon="📈", layout="wide")
+
+
+
 st.markdown("""
+
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
-    .main { background-color: #f8fafc; }
-    .stMetric { background-color: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-top: 4px solid #2563eb; }
-    .notification-badge { background-color: #ef4444; color: white; padding: 4px 8px; border-radius: 50%; font-size: 12px; vertical-align: top; }
-    .nav-card { background: white; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px; }
+
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+    
+
+    :root {
+
+        --primary: #2563eb;
+
+        --bg: #f8fafc;
+
+        --text: #1e293b;
+
+        --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+
+    }
+
+    
+
+    html, body, [class*="css"] {
+
+        font-family: 'IBM Plex Sans Arabic', sans-serif;
+
+        direction: rtl; text-align: right;
+
+        background-color: var(--bg);
+
+        color: var(--text);
+
+    }
+
+
+
+    /* تصميم البطاقات المطور */
+
+    .exec-card {
+
+        background: white;
+
+        border: 1px solid #e2e8f0;
+
+        border-radius: 15px;
+
+        padding: 20px;
+
+        box-shadow: var(--card-shadow);
+
+        transition: 0.3s;
+
+    }
+
+    .exec-card:hover {
+
+        transform: translateY(-5px);
+
+        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+
+        border-color: var(--primary);
+
+    }
+
+
+
+    /* بنر الذكاء الاصطناعي */
+
+    .ai-box {
+
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+
+        border-right: 5px solid var(--primary);
+
+        padding: 20px;
+
+        border-radius: 12px;
+
+        margin-bottom: 25px;
+
+        color: #1e3a8a;
+
+    }
+
+
+
+    /* التبويبات */
+
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+
+    .stTabs [data-baseweb="tab"] {
+
+        background: white;
+
+        border-radius: 10px 10px 0 0;
+
+        border: 1px solid #e2e8f0;
+
+        padding: 10px 30px;
+
+    }
+
+    .stTabs [aria-selected="true"] {
+
+        background: var(--primary) !important;
+
+        color: white !important;
+
+    }
+
+
+
+    /* إخفاء شعارات ستريم ليت الافتراضية */
+
+    #MainMenu, footer, header {visibility: hidden;}
+
     </style>
+
     """, unsafe_allow_html=True)
 
-# --- 2. محرك توليد البيانات الضخمة (Synthetic Big Data) ---
+
+
+# --- 2. محركات البيانات (Data Engines) ---
+
 @st.cache_data
-def generate_big_data(rows=10000):
-    np.random.seed(42)
-    categories = ['إلكترونيات', 'عطور', 'أزياء', 'مستلزمات منزلية', 'تجميل']
-    suppliers = [f'مورد {i}' for i in range(1, 101)]
+
+def load_all_data():
+
+    # بيانات الإيرادات والمصاريف
+
+    df_exec = pd.DataFrame({
+
+        'الشهر': ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو"],
+
+        'الإيرادات': [250000, 280000, 240000, 310000, 295000, 340000],
+
+        'المصاريف': [180000, 190000, 175000, 210000, 205000, 220000]
+
+    })
+
     
-    data = {
-        "المنتج": [f"منتج {i}" for i in range(1, rows + 1)],
-        "الفئة": np.random.choice(categories, rows),
-        "المورد": np.random.choice(suppliers, rows),
-        "المخزون الحالي": np.random.randint(0, 500, rows),
-        "المبيعات الشهرية": np.random.randint(10, 1000, rows),
-        "تكلفة الوحدة": np.random.uniform(20, 1500, rows).round(2),
-        "سعر البيع": np.random.uniform(50, 3000, rows).round(2),
-        "زمن التوريد (أيام)": np.random.randint(3, 45, rows),
-        "المرتجعات": np.random.randint(0, 20, rows)
-    }
-    df = pd.DataFrame(data)
-    # ضمان أن سعر البيع أكبر من التكلفة
-    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) + 10
-    return df
 
-# --- 3. محرك التحليل المتقدم (The Pro Engine) ---
-def advanced_pro_engine(df, ship_cost, tax_pct, op_cost_pct):
-    d = df.copy()
+    # بيانات التنبؤ بالطلب (30 يوم قادم)
+
+    dates = [(datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
+
+    df_fore = pd.DataFrame({
+
+        'التاريخ': dates, 
+
+        'الطلب': [100 + (i*1.2) + np.random.randint(-10,10) for i in range(30)],
+
+        'المخزون_المتوقع': [500 - (i*10) for i in range(30)]
+
+    })
+
     
-    # [أ] تحليل تكلفة الهبوط (Landed Cost)
-    d['رسوم البوابة والضرائب'] = d['سعر البيع'] * (tax_pct / 100)
-    d['التكلفة الكلية للقطعة'] = d['تكلفة الوحدة'] + ship_cost + d['رسوم البوابة والضرائب']
+
+    # بيانات الموردين
+
+    df_sup = pd.DataFrame({
+
+        'المورد': ['مورد التقنية', 'مصنع الخليج', 'توريد آسيا'],
+
+        'الجودة': [95, 80, 88],
+
+        'زمن_الشحن': [5, 12, 7],
+
+        'الالتزام': [98, 75, 90]
+
+    })
+
     
-    # [ب] حسابات الربحية (Gross & Net)
-    d['إجمالي الربح'] = (d['سعر البيع'] - d['التكلفة الكلية للقطعة']) * d['المبيعات الشهرية']
-    d['صافي الربح الحقيقي'] = d['إجمالي الربح'] * (1 - op_cost_pct / 100)
+
+    # بيانات المخزون التفصيلي (ABC)
+
+    df_inv = pd.DataFrame({
+
+        'المنتج': [f'منتج {i}' for i in range(1, 21)],
+
+        'المبيعات': np.random.randint(1000, 50000, 20),
+
+        'المخزون': np.random.randint(5, 100, 20)
+
+    }).sort_values('المبيعات', ascending=False)
+
     
-    # [ج] مخزن الأمان الذكي (Safety Stock)
-    # المعادلة: (أقصى مبيعات * أقصى زمن) - (المتوسط)
-    avg_daily_sales = d['المبيعات الشهرية'] / 30
-    d['مخزون الأمان'] = (avg_daily_sales * 1.5 * d['زمن التوريد (أيام)'] * 1.2 - (avg_daily_sales * d['زمن التوريد (أيام)'])).astype(int)
-    d['نقطة إعادة الطلب'] = (avg_daily_sales * d['زمن التوريد (أيام)']).astype(int) + d['مخزون الأمان']
-    
-    # [د] تصنيف ABC
-    d = d.sort_values(by='صافي الربح الحقيقي', ascending=False)
-    d['Cum_Profit'] = d['صافي الربح الحقيقي'].cumsum()
-    total_net = d['صافي الربح الحقيقي'].sum() if d['صافي الربح الحقيقي'].sum() != 0 else 1
-    d['Profit_Pct'] = (d['Cum_Profit'] / total_net) * 100
-    d['الفئة'] = d['Profit_Pct'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
-    
-    return d
 
-# --- 4. واجهة المستخدم والتحكم ---
-st.sidebar.markdown("## ⚙️ إعدادات المتجر المتقدمة")
-company_name = st.sidebar.text_input("اسم المتجر", "الماجد للعود - فرع الرياض")
+    return df_exec, df_fore, df_sup, df_inv
 
-# قسم إدخال التكاليف المخفية
-with st.sidebar.expander("💰 محاكي تكلفة الهبوط والربح"):
-    ship_cost = st.number_input("تكلفة الشحن لكل قطعة (ر.س)", 0.0, 500.0, 15.0)
-    tax_pct = st.slider("الضرائب ورسوم البوابة (%)", 0, 30, 15)
-    op_cost = st.slider("المصاريف التشغيلية/رواتب/إعلانات (%)", 0, 50, 20)
 
-st.sidebar.markdown("---")
-use_big_data = st.sidebar.checkbox("تفعيل قاعدة البيانات الضخمة (10,000 منتج)", value=True)
-uploaded_file = st.sidebar.file_uploader("أو ارفع ملفك الخاص", type=['xlsx', 'csv'])
 
-# جلب البيانات
-if uploaded_file:
-    raw_df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
-else:
-    raw_df = generate_big_data(10000 if use_big_data else 10)
+df_exec, df_fore, df_sup, df_inv = load_all_data()
 
-df = advanced_pro_engine(raw_df, ship_cost, tax_pct, op_cost)
 
-# --- 5. نظام التنبيهات الذكي (Notification Center) ---
-critical_stock = df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']]
-st.markdown(f"### 🔔 التنبيهات الذكية <span class='notification-badge'>{len(critical_stock.head(5))}</span>", unsafe_allow_html=True)
-if not critical_stock.empty:
-    with st.expander("عرض التنبيهات العاجلة"):
-        for _, row in critical_stock.head(3).iterrows():
-            st.error(f"تحذير: المنتج **{row['المنتج']}** قارب على النفاذ. المخزون الحالي: {row['المخزون الحالي']} | نقطة إعادة الطلب: {row['نقطة إعادة الطلب']}")
 
-# --- 6. لوحة القيادة الاستراتيجية ---
-st.title(f"🚀 لوحة تحكم ذكاء الأعمال: {company_name}")
+# --- 3. الهيكل الرئيسي (Sidebar) ---
 
-m1, m2, m3, m4 = st.columns(4)
-m1.metric("صافي الربح الحقيقي", f"{int(df['صافي الربح الحقيقي'].sum()):,} ر.س", "صافي")
-m2.metric("قيمة رأس المال المخزني", f"{int((df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()):,} ر.س")
-m3.metric("دوران المخزون (متوسط)", f"{(df['المبيعات الشهرية'].sum() / df['المخزون الحالي'].sum()):.2f}x")
-m4.metric("العائد على الاستثمار ROI", f"{((df['صافي الربح الحقيقي'].sum() / (df['تكلفة الوحدة'] * df['المبيعات الشهرية']).sum()) * 100):.1f}%")
+with st.sidebar:
 
-st.markdown("---")
+    st.image("https://cdn-icons-png.flaticon.com/512/5968/5968204.png", width=50) 
 
-tab1, tab2, tab3, tab4 = st.tabs(["📈 التحليل المالي", "📦 سلاسل الإمداد", "🤝 الموردين والشركاء", "⚙️ الربط والإعدادات"])
+    st.title("Nexus Store Pro")
+
+    st.markdown("---")
+
+    st.write("👤 **المدير:** منى محمد")
+
+    st.success("🟢 حالة المتجر: متصل")
+
+    st.markdown("---")
+
+    st.write("🛠️ **إجراءات سريعة:**")
+
+    if st.button("➕ إضافة طلب شراء"): st.toast("تم فتح نافذة المشتريات")
+
+    if st.button("📄 تصدير تقرير اليوم"): st.balloons()
+
+    st.markdown("---")
+
+    st.button("🔴 تسجيل الخروج")
+
+
+
+# --- 4. واجهة المستخدم (Main UI) ---
+
+st.markdown("<h1 style='font-weight:800; color:#1e293b;'>🚀 لوحة تحكم متجري المتكاملة</h1>", unsafe_allow_html=True)
+
+
+
+# بنر الذكاء الاصطناعي (AI Insight Box)
+
+st.markdown("""
+
+    <div class="ai-box">
+
+        <h4 style="margin:0 0 10px 0;">🤖 رؤى Nexus AI لليوم:</h4>
+
+        <p style="margin:0;">تحليل المبيعات يشير لارتفاع الطلب بنسبة <b>15%</b> الأسبوع القادم. 
+
+        يُنصح بزيادة مخزون <b>"منتج 1"</b> و <b>"منتج 3"</b> لتفادي أي عجز محتمل.</p>
+
+    </div>
+
+""", unsafe_allow_html=True)
+
+
+
+# التبويبات (Tabs)
+
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+
+    "🏢 برج المراقبة", "🔮 التنبؤ الذكي", "📦 إدارة المخزون", "🚚 الموردين", "🔄 المرتجعات"
+
+])
+
+
+
+# --- القسم 1: برج المراقبة ---
 
 with tab1:
-    col_f1, col_f2 = st.columns(2)
-    with col_f1:
-        st.plotly_chart(px.pie(df, names='الفئة', values='صافي الربح الحقيقي', hole=0.5, title="توزيع صافي الأرباح حسب فئة المنتج (ABC)"), use_container_width=True)
-    with col_f2:
-        st.plotly_chart(px.histogram(df, x="الفئة", y="صافي الربح الحقيقي", color="الفئة", title="مساهمة الفئات في الدخل الصافي"), use_container_width=True)
+
+    m1, m2, m3 = st.columns(3)
+
+    with m1:
+
+        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
+
+        st.metric("إجمالي السيولة", "340,000 ر.س", "12%")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with m2:
+
+        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
+
+        st.metric("رأس مال المخزون", "1.2M ر.س", "-4%")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with m3:
+
+        st.markdown('<div class="exec-card">', unsafe_allow_html=True)
+
+        st.metric("دقة التوصيل", "96.5%", "1.2%")
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    fig_exec = go.Figure()
+
+    fig_exec.add_trace(go.Scatter(x=df_exec['الشهر'], y=df_exec['الإيرادات'], name='الإيرادات', line=dict(color='#2563eb', width=4), fill='tozeroy'))
+
+    fig_exec.add_trace(go.Scatter(x=df_exec['الشهر'], y=df_exec['المصاريف'], name='المصاريف', line=dict(color='#ef4444', width=2)))
+
+    fig_exec.update_layout(title="تحليل التدفق النقدي (الستة أشهر الماضية)", plot_bgcolor='white')
+
+    st.plotly_chart(fig_exec, use_container_width=True)
+
+
+
+# --- القسم 2: التنبؤ الذكي ---
 
 with tab2:
-    st.subheader("📦 إدارة المخزن والأمان الذكي")
-    st.dataframe(df[['المنتج', 'المخزون الحالي', 'مخزون الأمان', 'نقطة إعادة الطلب', 'الفئة']].head(100), use_container_width=True)
-    st.plotly_chart(px.scatter(df.head(500), x="المخزون الحالي", y="نقطة إعادة الطلب", size="المبيعات الشهرية", color="الفئة", hover_name="المنتج"), use_container_width=True)
+
+    st.subheader("🔮 توقعات الطلب لـ 30 يوماً القادمة")
+
+    c_f1, c_f2 = st.columns([7, 3])
+
+    
+
+    with c_f1:
+
+        fig_f = px.line(df_fore, x='التاريخ', y='الطلب', markers=True, title="منحنى الطلب المتوقع")
+
+        fig_f.update_traces(line_color='#2563eb')
+
+        st.plotly_chart(fig_f, use_container_width=True)
+
+    
+
+    with c_f2:
+
+        st.markdown("""<div class='exec-card' style='border-right: 5px solid #f59e0b;'>
+
+            <h4>⚠️ تنبيه نفاذ مخزون</h4>
+
+            <p>منتج <b>SKU-55</b> مرشح للنفاذ بتاريخ <b>12 إبريل</b>.</p>
+
+            <button style='width:100%; padding:10px; background:#2563eb; color:white; border:none; border-radius:5px;'>طلب بضاعة الآن</button>
+
+        </div>""", unsafe_allow_html=True)
+
+
+
+# --- القسم 3: إدارة المخزون (ABC Analysis) ---
 
 with tab3:
-    st.subheader("🚚 تحليل أداء الموردين (كشف المقصرين)")
-    # تجميع البيانات حسب المورد
-    sup_df = df.groupby('المورد').agg({'زمن التوريد (أيام)': 'mean', 'صافي الربح الحقيقي': 'sum', 'المنتج': 'count'}).reset_index()
-    fig_sup = px.scatter(sup_df, x="زمن التوريد (أيام)", y="صافي الربح الحقيقي", size="المنتج", color="المورد", title="الموردين الأكثر ربحية مقابل سرعة التوريد")
-    st.plotly_chart(fig_sup, use_container_width=True)
+
+    st.subheader("📦 تحليل ABC وتصنيف المنتجات")
+
+    col_abc1, col_abc2 = st.columns(2)
+
+    
+
+    with col_abc1:
+
+        # حساب ABC وهمي سريع
+
+        df_inv['النسبة'] = (df_inv['المبيعات'] / df_inv['المبيعات'].sum()) * 100
+
+        fig_pie = px.pie(names=['الفئة A (حيوي)', 'الفئة B (متوسط)', 'الفئة C (ثانوي)'], values=[70, 20, 10], 
+
+                         hole=0.5, title="توزيع قيمة المخزون", color_discrete_sequence=['#1e40af', '#3b82f6', '#94a3b8'])
+
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+        
+
+    with col_abc2:
+
+        st.write("🔍 **أكثر المنتجات ربحية (Top Tier):**")
+
+        st.dataframe(df_inv[['المنتج', 'المبيعات', 'المخزون']].head(5), use_container_width=True)
+
+
+
+# --- القسم 4: الموردين والشحن ---
 
 with tab4:
-    st.subheader("🔌 الربط مع المنصات (API Integration)")
-    st.info("سيتم تفعيل الربط المباشر قريباً لسحب البيانات لحظياً من منصاتك المفضلة.")
-    c_api1, c_api2, c_api3 = st.columns(3)
-    c_api1.image("https://cdn.iconscout.com/icon/free/png-256/free-shopify-226578.png", width=100)
-    c_api2.markdown("### Salla / سلة")
-    c_api3.markdown("### Zid / زد")
-    st.markdown("---")
-    st.markdown("🔒 **الأمان والخصوصية:** جميع البيانات تُعالج محلياً في متصفحك ولا يتم تخزين أي سجلات تجارية على خوادمنا.")
 
-# --- 7. تصدير التقارير (White Label PDF & Excel) ---
+    st.subheader("🚚 تقييم الموردين واللوجستيات")
+
+    st.table(df_sup)
+
+    
+
+    fig_sup = px.scatter(df_sup, x='زمن_الشحن', y='الجودة', size='الالتزام', color='المورد', 
+
+                         title="مصفوفة أداء الموردين", text='المورد')
+
+    fig_sup.update_layout(plot_bgcolor='white')
+
+    st.plotly_chart(fig_sup, use_container_width=True)
+
+
+
+# --- القسم 5: المرتجعات والتقارير ---
+
+with tab5:
+
+    st.subheader("🔄 إدارة المرتجعات والهدر المالي")
+
+    col_r1, col_r2 = st.columns(2)
+
+    
+
+    with col_r1:
+
+        st.bar_chart({'عيب مصنعي': 20, 'مقاس خاطئ': 50, 'تأخر شحن': 15, 'لم يعجب العميل': 10})
+
+        
+
+    with col_r2:
+
+        st.markdown("""<div class='exec-card'>
+
+            <h4>📑 مركز التقارير الجاهزة</h4>
+
+            <p>يمكنك تحميل ملخص العمليات الشهري بصيغة PDF.</p>
+
+            <hr>
+
+            <p>✅ تقرير المخزون جاهز</p>
+
+            <p>✅ تقرير الموردين جاهز</p>
+
+        </div>""", unsafe_allow_html=True)
+
+        st.button("📥 تحميل التقرير النهائي (Full Report)")
+
+
+
+# --- التذييل ---
+
 st.markdown("---")
-st.subheader("📑 تصدير التقارير الاستراتيجية")
-c_down1, c_down2 = st.columns(2)
-with c_down1:
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Main_Report')
-    st.download_button("📥 تحميل التقرير الختامي (Excel)", data=output.getvalue(), file_name=f"NexusAI_{company_name}.xlsx")
-with c_down2:
-    st.button("📄 تحميل تقرير الأداء الشهري (PDF) - قريباً", help="ميزة الفئة الاحترافية")
 
-st.caption(f"تم التطوير بواسطة منى محمد | Nexus AI Enterprise 2026 - الإصدار 3.0")
-
+st.caption(f"Nexus BI Solution v3.0 | جميع الحقوق محفوظة لـ {STORE_NAME if 'STORE_NAME' in locals() else 'متجري'} 2026")
