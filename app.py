@@ -5,150 +5,153 @@ import plotly.express as px
 import io
 from datetime import datetime, timedelta
 
-# --- 1. إعدادات الهوية البصرية ---
-st.set_page_config(page_title="Nexus AI | Enterprise Supply Chain", page_icon="🌐", layout="wide")
+# --- 1. إعدادات الهوية البصرية والوضع الداكن ---
+st.set_page_config(page_title="Nexus AI | Enterprise BI", page_icon="💎", layout="wide")
 
+# تصميم CSS احترافي يدعم التوجه RTL والجمالية العالية
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; background-color: #f4f7f9; }
-    .stMetric { background-color: #ffffff; border-radius: 15px; padding: 20px; border-right: 5px solid #3b82f6; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-    .main-title { color: #1e3a8a; text-align: center; font-weight: 700; margin: 20px 0; }
-    .stAlert { border-radius: 12px; }
+    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
+    .main { background-color: #f8fafc; }
+    .stMetric { background-color: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border-top: 4px solid #2563eb; }
+    .notification-badge { background-color: #ef4444; color: white; padding: 4px 8px; border-radius: 50%; font-size: 12px; vertical-align: top; }
+    .nav-card { background: white; padding: 10px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. المحرك الذكي المتقدم (Advanced Analytics Engine) ---
-def advanced_supply_chain_engine(df):
+# --- 2. محرك توليد البيانات الضخمة (Synthetic Big Data) ---
+@st.cache_data
+def generate_big_data(rows=10000):
+    np.random.seed(42)
+    categories = ['إلكترونيات', 'عطور', 'أزياء', 'مستلزمات منزلية', 'تجميل']
+    suppliers = [f'مورد {i}' for i in range(1, 101)]
+    
+    data = {
+        "المنتج": [f"منتج {i}" for i in range(1, rows + 1)],
+        "الفئة": np.random.choice(categories, rows),
+        "المورد": np.random.choice(suppliers, rows),
+        "المخزون الحالي": np.random.randint(0, 500, rows),
+        "المبيعات الشهرية": np.random.randint(10, 1000, rows),
+        "تكلفة الوحدة": np.random.uniform(20, 1500, rows).round(2),
+        "سعر البيع": np.random.uniform(50, 3000, rows).round(2),
+        "زمن التوريد (أيام)": np.random.randint(3, 45, rows),
+        "المرتجعات": np.random.randint(0, 20, rows)
+    }
+    df = pd.DataFrame(data)
+    # ضمان أن سعر البيع أكبر من التكلفة
+    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) + 10
+    return df
+
+# --- 3. محرك التحليل المتقدم (The Pro Engine) ---
+def advanced_pro_engine(df, ship_cost, tax_pct, op_cost_pct):
     d = df.copy()
     
-    # [1] الحسابات المالية الأساسية
-    d['إجمالي الربح'] = (d['سعر البيع'] - d['تكلفة الوحدة']) * d['المبيعات الشهرية']
+    # [أ] تحليل تكلفة الهبوط (Landed Cost)
+    d['رسوم البوابة والضرائب'] = d['سعر البيع'] * (tax_pct / 100)
+    d['التكلفة الكلية للقطعة'] = d['تكلفة الوحدة'] + ship_cost + d['رسوم البوابة والضرائب']
     
-    # [2] التنبؤ بالطلب المستقبلي (AI-Based Forecast) 
-    # محاكاة لنمو بنسبة 15% مع عوامل موسمية
-    d['الطلب المتوقع (الشهر القادم)'] = (d['المبيعات الشهرية'] * 1.15).round(0).astype(int)
+    # [ب] حسابات الربحية (Gross & Net)
+    d['إجمالي الربح'] = (d['سعر البيع'] - d['التكلفة الكلية للقطعة']) * d['المبيعات الشهرية']
+    d['صافي الربح الحقيقي'] = d['إجمالي الربح'] * (1 - op_cost_pct / 100)
     
-    # [3] تحليل السيولة المجمدة (Frozen Cash)
-    d['أيام الركود'] = np.random.randint(10, 150, len(d)) # محاكاة للواقع
-    d['السيولة المجمدة'] = d['المخزون الحالي'] * d['تكلفة الوحدة']
+    # [ج] مخزن الأمان الذكي (Safety Stock)
+    # المعادلة: (أقصى مبيعات * أقصى زمن) - (المتوسط)
+    avg_daily_sales = d['المبيعات الشهرية'] / 30
+    d['مخزون الأمان'] = (avg_daily_sales * 1.5 * d['زمن التوريد (أيام)'] * 1.2 - (avg_daily_sales * d['زمن التوريد (أيام)'])).astype(int)
+    d['نقطة إعادة الطلب'] = (avg_daily_sales * d['زمن التوريد (أيام)']).astype(int) + d['مخزون الأمان']
     
-    # [4] تحليل ABC الاستراتيجي
-    d = d.sort_values(by='إجمالي الربح', ascending=False)
-    d['Cumulative_Profit'] = d['إجمالي الربح'].cumsum()
-    total_p = d['إجمالي الربح'].sum() if d['إجمالي الربح'].sum() != 0 else 1
-    d['Profit_%'] = (d['Cumulative_Profit'] / total_p) * 100
-    d['الفئة'] = d['Profit_%'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
-    
-    # [5] نقطة إعادة الطلب (Reorder Point) ومخزون الأمان
-    daily_sales = d['المبيعات الشهرية'] / 30
-    d['مخزون الأمان'] = (daily_sales * 7).astype(int) # تأمين لـ 7 أيام إضافية
-    d['نقطة إعادة الطلب'] = (daily_sales * d['زمن التوريد (أيام)']).astype(int) + d['مخزون الأمان']
-    
-    # [6] تقييم الموردين (Supplier Score)
-    d['دقة التوريد'] = np.random.uniform(70, 100, len(d)).round(1) # محاكاة دقة المورد في المواعيد
+    # [د] تصنيف ABC
+    d = d.sort_values(by='صافي الربح الحقيقي', ascending=False)
+    d['Cum_Profit'] = d['صافي الربح الحقيقي'].cumsum()
+    total_net = d['صافي الربح الحقيقي'].sum() if d['صافي الربح الحقيقي'].sum() != 0 else 1
+    d['Profit_Pct'] = (d['Cum_Profit'] / total_net) * 100
+    d['الفئة'] = d['Profit_Pct'].apply(lambda x: 'A (حيوي)' if x <= 70 else ('B (متوسط)' if x <= 90 else 'C (ثانوي)'))
     
     return d
 
-# --- 3. القائمة الجانبية (The Control Panel) ---
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/2103/2103633.png", width=100)
-st.sidebar.markdown("<h2 style='text-align: center;'>NEXUS AI v2.0</h2>", unsafe_allow_html=True)
-company_name = st.sidebar.text_input("🏢 اسم المتجر/المنشأة", "Nexus Store")
-uploaded_file = st.sidebar.file_uploader("📥 ارفع بيانات المتجر (Excel/CSV)", type=['xlsx', 'csv'])
+# --- 4. واجهة المستخدم والتحكم ---
+st.sidebar.markdown("## ⚙️ إعدادات المتجر المتقدمة")
+company_name = st.sidebar.text_input("اسم المتجر", "الماجد للعود - فرع الرياض")
 
-# بيانات افتراضية احترافية
-if not uploaded_file:
-    demo_data = pd.DataFrame({
-        "المنتج": ["عطر سديم", "بخور ملكي", "دهن عود سيوفي", "ساعة ذكية", "طقم إكسسوار"],
-        "المورد": ["مورد دبي", "مورد الرياض", "مورد الرياض", "مورد الصين", "مورد محلي"],
-        "المخزون الحالي": [15, 140, 8, 300, 45],
-        "المبيعات الشهرية": [120, 55, 30, 200, 400],
-        "تكلفة الوحدة": [180, 70, 1100, 50, 12],
-        "سعر البيع": [450, 190, 2800, 150, 35],
-        "زمن التوريد (أيام)": [10, 5, 20, 45, 3]
-    })
-    df_raw = demo_data
+# قسم إدخال التكاليف المخفية
+with st.sidebar.expander("💰 محاكي تكلفة الهبوط والربح"):
+    ship_cost = st.number_input("تكلفة الشحن لكل قطعة (ر.س)", 0.0, 500.0, 15.0)
+    tax_pct = st.slider("الضرائب ورسوم البوابة (%)", 0, 30, 15)
+    op_cost = st.slider("المصاريف التشغيلية/رواتب/إعلانات (%)", 0, 50, 20)
+
+st.sidebar.markdown("---")
+use_big_data = st.sidebar.checkbox("تفعيل قاعدة البيانات الضخمة (10,000 منتج)", value=True)
+uploaded_file = st.sidebar.file_uploader("أو ارفع ملفك الخاص", type=['xlsx', 'csv'])
+
+# جلب البيانات
+if uploaded_file:
+    raw_df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
 else:
-    df_raw = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
+    raw_df = generate_big_data(10000 if use_big_data else 10)
 
-df = advanced_supply_chain_engine(df_raw)
+df = advanced_pro_engine(raw_df, ship_cost, tax_pct, op_cost)
 
-# --- 4. العرض الرئيسي للمنصة ---
-st.markdown(f"<h1 class='main-title'>منصة ذكاء سلاسل الإمداد لـ {company_name}</h1>", unsafe_allow_html=True)
+# --- 5. نظام التنبيهات الذكي (Notification Center) ---
+critical_stock = df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']]
+st.markdown(f"### 🔔 التنبيهات الذكية <span class='notification-badge'>{len(critical_stock.head(5))}</span>", unsafe_allow_html=True)
+if not critical_stock.empty:
+    with st.expander("عرض التنبيهات العاجلة"):
+        for _, row in critical_stock.head(3).iterrows():
+            st.error(f"تحذير: المنتج **{row['المنتج']}** قارب على النفاذ. المخزون الحالي: {row['المخزون الحالي']} | نقطة إعادة الطلب: {row['نقطة إعادة الطلب']}")
 
-# صف المؤشرات الذكية
-c1, c2, c3, c4 = st.columns(4)
-total_frozen = int(df[df['أيام الركود'] > 60]['السيولة المجمدة'].sum())
-c1.metric("إجمالي الربح المتوقع", f"{int(df['إجمالي الربح'].sum()):,} ر.س")
-c2.metric("السيولة المجمدة (الراكد)", f"{total_frozen:,} ر.س", delta="خطر سيولة", delta_color="inverse")
-c3.metric("دقة التوريد العامة", f"{df['دقة التوريد'].mean():.1f}%")
-c4.metric("منتجات تحتاج طلب فوراً", len(df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']]))
+# --- 6. لوحة القيادة الاستراتيجية ---
+st.title(f"🚀 لوحة تحكم ذكاء الأعمال: {company_name}")
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("صافي الربح الحقيقي", f"{int(df['صافي الربح الحقيقي'].sum()):,} ر.س", "صافي")
+m2.metric("قيمة رأس المال المخزني", f"{int((df['المخزون الحالي'] * df['تكلفة الوحدة']).sum()):,} ر.س")
+m3.metric("دوران المخزون (متوسط)", f"{(df['المبيعات الشهرية'].sum() / df['المخزون الحالي'].sum()):.2f}x")
+m4.metric("العائد على الاستثمار ROI", f"{((df['صافي الربح الحقيقي'].sum() / (df['تكلفة الوحدة'] * df['المبيعات الشهرية']).sum()) * 100):.1f}%")
 
 st.markdown("---")
 
-# تبويبات الرحلة المتكاملة
-t1, t2, t3, t4, t5 = st.tabs(["🔮 التنبؤ والنمو", "📦 إدارة المستودعات", "🛒 تحليل السلة (Bundles)", "🚚 تقييم الموردين", "🚨 محاكي الأزمات"])
+tab1, tab2, tab3, tab4 = st.tabs(["📈 التحليل المالي", "📦 سلاسل الإمداد", "🤝 الموردين والشركاء", "⚙️ الربط والإعدادات"])
 
-with t1:
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.subheader("توقعات الطلب للشهر القادم بناءً على النمو")
-        fig_forecast = px.bar(df, x="المنتج", y=["المبيعات الشهرية", "الطلب المتوقع (الشهر القادم)"], 
-                              barmode="group", color_discrete_sequence=['#3b82f6', '#10b981'])
-        st.plotly_chart(fig_forecast, use_container_width=True)
-    with col2:
-        st.info("💡 **نصيحة الذكاء الاصطناعي:** يتوقع نمو بنسبة 15%. ننصح بزيادة طلبات الشراء للفئة (A) لتجنب نفاذ المخزون.")
+with tab1:
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        st.plotly_chart(px.pie(df, names='الفئة', values='صافي الربح الحقيقي', hole=0.5, title="توزيع صافي الأرباح حسب فئة المنتج (ABC)"), use_container_width=True)
+    with col_f2:
+        st.plotly_chart(px.histogram(df, x="الفئة", y="صافي الربح الحقيقي", color="الفئة", title="مساهمة الفئات في الدخل الصافي"), use_container_width=True)
 
-with t2:
-    st.subheader("تحليل كفاءة المخزون والركود")
-    col_x, col_y = st.columns(2)
-    with col_x:
-        st.plotly_chart(px.scatter(df, x="أيام الركود", y="السيولة المجمدة", size="المخزون الحالي", color="الفئة", title="توزيع البضاعة الراكدة"), use_container_width=True)
-    with col_y:
-        st.markdown("**أوامر شراء مقترحة (جاهزة للإرسال):**")
-        order_df = df[df['المخزون الحالي'] <= df['نقطة إعادة الطلب']][['المنتج', 'المورد', 'نقطة إعادة الطلب', 'المخزون الحالي']]
-        order_df['الكمية المطلوبة'] = (df['الطلب المتوقع (الشهر القادم)'] * 1.5).astype(int)
-        st.dataframe(order_df, use_container_width=True)
+with tab2:
+    st.subheader("📦 إدارة المخزن والأمان الذكي")
+    st.dataframe(df[['المنتج', 'المخزون الحالي', 'مخزون الأمان', 'نقطة إعادة الطلب', 'الفئة']].head(100), use_container_width=True)
+    st.plotly_chart(px.scatter(df.head(500), x="المخزون الحالي", y="نقطة إعادة الطلب", size="المبيعات الشهرية", color="الفئة", hover_name="المنتج"), use_container_width=True)
 
-with t3:
-    st.subheader("تحليل سلة المشتريات (ذكاء البيع)")
-    st.markdown("تم تحليل الأنماط: المنتجات التالية يُنصح بوضعها في **حزم تسويقية (Bundles)** لزيادة الأرباح:")
-    bundles = pd.DataFrame({
-        "المنتج الأساسي": df['المنتج'].head(3).values,
-        "منتج مكمل مقترح": ["تغليف هدايا", "بطارية إضافية", "حقيبة واقية"],
-        "زيادة الربح المتوقعة": ["+12%", "+18%", "+25%"]
-    })
-    st.table(bundles)
-
-with t4:
-    st.subheader("بطاقة أداء الموردين (Supplier Scorecard)")
-    fig_sup = px.scatter(df, x="زمن التوريد (أيام)", y="دقة التوريد", color="المورد", size="إجمالي الربح", title="كفاءة الموردين مقابل الربحية")
+with tab3:
+    st.subheader("🚚 تحليل أداء الموردين (كشف المقصرين)")
+    # تجميع البيانات حسب المورد
+    sup_df = df.groupby('المورد').agg({'زمن التوريد (أيام)': 'mean', 'صافي الربح الحقيقي': 'sum', 'المنتج': 'count'}).reset_index()
+    fig_sup = px.scatter(sup_df, x="زمن التوريد (أيام)", y="صافي الربح الحقيقي", size="المنتج", color="المورد", title="الموردين الأكثر ربحية مقابل سرعة التوريد")
     st.plotly_chart(fig_sup, use_container_width=True)
 
-with t5:
-    st.subheader("محاكي أزمات الشحن العالمي")
-    delay = st.slider("اختر عدد أيام تأخير الشحن المتوقعة (أزمة لوجستية):", 0, 60, 15)
-    df['أيام النفاذ'] = (df['المخزون الحالي'] / (df['المبيعات الشهرية'] / 30)).round(0)
-    risk_products = df[df['أيام النفاذ'] < delay]
-    if not risk_products.empty:
-        st.error(f"⚠️ في حال تأخر الشحن لـ {delay} يوم، ستنفذ هذه المنتجات تماماً من متجرك:")
-        st.dataframe(risk_products[['المنتج', 'المورد', 'أيام النفاذ']])
-    else:
-        st.success("مخزونك آمن وقادر على تحمل هذا التأخير.")
+with tab4:
+    st.subheader("🔌 الربط مع المنصات (API Integration)")
+    st.info("سيتم تفعيل الربط المباشر قريباً لسحب البيانات لحظياً من منصاتك المفضلة.")
+    c_api1, c_api2, c_api3 = st.columns(3)
+    c_api1.image("https://cdn.iconscout.com/icon/free/png-256/free-shopify-226578.png", width=100)
+    c_api2.markdown("### Salla / سلة")
+    c_api3.markdown("### Zid / زد")
+    st.markdown("---")
+    st.markdown("🔒 **الأمان والخصوصية:** جميع البيانات تُعالج محلياً في متصفحك ولا يتم تخزين أي سجلات تجارية على خوادمنا.")
 
-# --- 5. تصدير التقارير النهائية ---
+# --- 7. تصدير التقارير (White Label PDF & Excel) ---
 st.markdown("---")
-col_down1, col_down2 = st.columns(2)
-with col_down1:
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Strategic_Report')
-    st.download_button("📥 تحميل التقرير الاستراتيجي (Excel)", data=buffer.getvalue(), file_name=f"{company_name}_Full_Report.xlsx")
+st.subheader("📑 تصدير التقارير الاستراتيجية")
+c_down1, c_down2 = st.columns(2)
+with c_down1:
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Main_Report')
+    st.download_button("📥 تحميل التقرير الختامي (Excel)", data=output.getvalue(), file_name=f"NexusAI_{company_name}.xlsx")
+with c_down2:
+    st.button("📄 تحميل تقرير الأداء الشهري (PDF) - قريباً", help="ميزة الفئة الاحترافية")
 
-with col_down2:
-    # ميزة إضافية: استخراج أمر شراء تلقائي
-    po_buffer = io.BytesIO()
-    order_df.to_excel(po_buffer, index=False)
-    st.download_button("📝 تحميل أوامر الشراء المقترحة (PO)", data=po_buffer.getvalue(), file_name=f"Purchase_Orders_{company_name}.xlsx")
-
-st.caption(f"تم التطوير بواسطة منى محمد | Nexus AI 2026 - نظام متكامل لإدارة سلاسل الإمداد للمتاجر الإلكترونية")
+st.caption(f"تم التطوير بواسطة منى محمد | Nexus AI Enterprise 2026 - الإصدار 3.0")
