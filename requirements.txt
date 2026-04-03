@@ -1,8 +1,5 @@
-streamlit
-pandas
+streamlit>=1.30.0
+pandas>=2.0.0
 numpy
-plotly
-streamlit-option-menu
-streamlit-aggrid
-streamlit-lottie
-requests
+plotly>=5.18.0
+xlsxwriter
