@@ -8,14 +8,29 @@ st.set_page_config(page_title="Nexus AI | Enterprise", page_icon="📊", layout=
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
-    html, body, [class*="css"] { font-family: 'Cairo', sans-serif; text-align: right; direction: rtl; }
+    /* الخلفية الكلية */
+    .stApp {
+        background-color: #0e1117;
+    }
+    /* بطاقات KPI فخمة */
     .kpi-card {
-        background-color: #ffffff;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        background: linear-gradient(145deg, #1e1e1e, #121212);
+        padding: 25px;
+        border-radius: 20px;
+        box-shadow: 5px 5px 15px #050505, -5px -5px 15px #1f1f1f;
         text-align: center;
-        border-right: 5px solid #10b981;
+        border: 1px solid #D4AF37;
+        color: #D4AF37;
+    }
+    /* العناوين ذهبية */
+    h1, h2, h3, p {
+        color: #D4AF37 !important;
+        font-family: 'Cairo', sans-serif;
+    }
+    /* تعديل شكل الـ Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #121212;
+        border-left: 1px solid #D4AF37;
     }
     </style>
     """, unsafe_allow_html=True)
