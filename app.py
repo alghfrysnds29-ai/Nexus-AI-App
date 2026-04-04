@@ -9,7 +9,7 @@ import requests
 # إعدادات عامة + ثيم iOS Light
 # =========================
 st.set_page_config(
-    page_title="لوحة تحكم المتجر الخليجي",
+    page_title="لوحة تحكم المتجر ",
     page_icon=None,
     layout="wide"
 )
@@ -19,84 +19,68 @@ st.set_page_config(
 # =========================
 st.markdown("""
     <style>
-    /* الخطوط */
     html, body, [class*="css"] {
         font-family: 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
     }
 
-    /* الألوان الأساسية */
-    :root {
-        --primary-color: #004aad;   /* أزرق احترافي */
-        --secondary-color: #00a86b; /* أخضر للتوازن */
-        --background-color: #f5f7fa;
-        --text-color: #111827;
-    }
-
-    /* خلفية التطبيق */
     .stApp {
-        background-color: var(--background-color);
-        color: var(--text-color);
+        background-color: #f5f7fa !important;
+        color: #111827 !important;
     }
 
-    /* الشريط الجانبي */
     [data-testid="stSidebar"] {
-        background-color: #ffffff;
-        border-right: 1px solid #e5e7eb;
+        background-color: #ffffff !important;
+        border-right: 1px solid #e5e7eb !important;
     }
 
-    /* العناوين */
     h1, h2, h3 {
-        color: var(--primary-color);
-        font-weight: 700;
+        color: #004aad !important;
+        font-weight: 700 !important;
     }
 
-    /* الأزرار */
     .stButton>button {
-        background-color: var(--primary-color);
-        color: #fff;
-        border-radius: 8px;
-        padding: 0.6em 1.2em;
-        font-weight: bold;
+        background-color: #004aad !important;
+        color: #fff !important;
+        border-radius: 8px !important;
+        padding: 0.6em 1.2em !important;
+        font-weight: bold !important;
         transition: 0.3s;
     }
     .stButton>button:hover {
-        background-color: var(--secondary-color);
-        color: #fff;
+        background-color: #00a86b !important;
+        color: #fff !important;
     }
 
-    /* البطاقات والمؤشرات */
     .stMetric {
         background-color: #ffffff !important;
-        border-radius: 12px;
-        padding: 12px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        border-radius: 12px !important;
+        padding: 12px !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
     }
 
-    /* الجداول */
     .stDataFrame, .stTable {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 8px;
-        border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        background-color: #ffffff !important;
+        border-radius: 12px !important;
+        padding: 8px !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03) !important;
     }
 
-    /* التبويبات */
     .stTabs [data-baseweb="tab"] {
-        border-radius: 999px;
-        padding: 6px 14px;
-        background-color: #f3f4f6;
-        color: #374151;
-        font-weight: 500;
+        border-radius: 999px !important;
+        padding: 6px 14px !important;
+        background-color: #f3f4f6 !important;
+        color: #374151 !important;
+        font-weight: 500 !important;
     }
     .stTabs [aria-selected="true"] {
-        background-color: var(--primary-color) !important;
+        background-color: #004aad !important;
         color: #fff !important;
     }
     </style>
 """, unsafe_allow_html=True)
-# =========================
+
 # دوال توليد بيانات وهمية
 # =========================
 @st.cache_data
