@@ -14,76 +14,88 @@ st.set_page_config(
     layout="wide"
 )
 
-# ثيم iOS Light عبر CSS (أبيض، رمادي فاتح، ظلال خفيفة، خط يشبه الآيفون)
-st.markdown(
-    """
+# =========================
+# هوية بصرية احترافية (Brand Kit)
+# =========================
+st.markdown("""
     <style>
-    * {
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+    /* الخطوط */
+    html, body, [class*="css"] {
+        font-family: 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
     }
+
+    /* الألوان الأساسية */
+    :root {
+        --primary-color: #004aad;   /* أزرق احترافي */
+        --secondary-color: #00a86b; /* أخضر للتوازن */
+        --background-color: #f5f7fa;
+        --text-color: #111827;
+    }
+
+    /* خلفية التطبيق */
     .stApp {
-        background: #f5f5f7;
-        color: #111827;
+        background-color: var(--background-color);
+        color: var(--text-color);
     }
-    .block-container {
-        padding-top: 1.5rem;
-        padding-bottom: 1.5rem;
-        max-width: 1200px;
-    }
-    .stSidebar {
-        background: #ffffff !important;
+
+    /* الشريط الجانبي */
+    [data-testid="stSidebar"] {
+        background-color: #ffffff;
         border-right: 1px solid #e5e7eb;
     }
-    .stSidebar h1, .stSidebar h2, .stSidebar h3, .stSidebar p, .stSidebar span, .stSidebar label {
-        color: #111827 !important;
+
+    /* العناوين */
+    h1, h2, h3 {
+        color: var(--primary-color);
+        font-weight: 700;
     }
-    .stRadio > label {
-        font-weight: 500;
+
+    /* الأزرار */
+    .stButton>button {
+        background-color: var(--primary-color);
+        color: #fff;
+        border-radius: 8px;
+        padding: 0.6em 1.2em;
+        font-weight: bold;
+        transition: 0.3s;
     }
+    .stButton>button:hover {
+        background-color: var(--secondary-color);
+        color: #fff;
+    }
+
+    /* البطاقات والمؤشرات */
     .stMetric {
         background-color: #ffffff !important;
-        border-radius: 14px;
-        padding: 10px 14px;
+        border-radius: 12px;
+        padding: 12px;
         border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     }
-    .kpi-title {
-        font-weight: 600;
-        color: #111827;
-        font-size: 0.95rem;
-        margin-bottom: 0.25rem;
-    }
-    .section-title {
-        font-weight: 700;
-        color: #111827;
-        font-size: 1.3rem;
-        margin-bottom: 0.75rem;
-    }
+
+    /* الجداول */
     .stDataFrame, .stTable {
         background-color: #ffffff;
         border-radius: 12px;
         padding: 8px;
         border: 1px solid #e5e7eb;
-        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.03);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
     }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 4px;
-    }
+
+    /* التبويبات */
     .stTabs [data-baseweb="tab"] {
         border-radius: 999px;
         padding: 6px 14px;
         background-color: #f3f4f6;
         color: #374151;
+        font-weight: 500;
     }
     .stTabs [aria-selected="true"] {
-        background-color: #111827 !important;
-        color: #f9fafb !important;
+        background-color: var(--primary-color) !important;
+        color: #fff !important;
     }
     </style>
-    """,
-    unsafe_allow_html=True
-)
-
+""", unsafe_allow_html=True)
 # =========================
 # دوال توليد بيانات وهمية
 # =========================
