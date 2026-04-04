@@ -29,7 +29,13 @@ def generate_generic_data(rows=1000):
     categories = ['فئة أ', 'فئة ب', 'فئة ج', 'فئة د']
     suppliers = [f'المورد {i}' for i in range(1, 21)]
     
+    # إضافة بُعد الزمن: توليد تواريخ عشوائية خلال آخر 12 شهر
+    end_date = pd.to_datetime('today')
+    start_date = end_date - pd.DateOffset(days=365)
+    random_dates = pd.to_datetime(np.random.randint(start_date.value, end_date.value, rows))
+    
     data = {
+        "تاريخ الطلب": random_dates,
         "المنتج": [f"عنصر تجاري {i}" for i in range(1, rows + 1)],
         "التصنيف": np.random.choice(categories, rows),
         "المورد": np.random.choice(suppliers, rows),
@@ -38,13 +44,12 @@ def generate_generic_data(rows=1000):
         "تكلفة الوحدة": np.random.uniform(10, 2000, rows).round(2),
         "سعر البيع": np.random.uniform(15, 4000, rows).round(2),
         "زمن التوريد (أيام)": np.random.randint(1, 30, rows),
-        "المرتجعات": np.random.randint(0, 50, rows)
+        "المرتجعات": np.random.randint(0, 15, rows) # تم تقليلها لتكون نسبة واقعية
     }
     df = pd.DataFrame(data)
-    # التأكد من منطقية السعر مقارنة بالتكلفة
-    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) * 1.2
-    return df
-
+    # التأكد من منطقية السعر مقارنة بالتكلفة بهامش ربح يضمن عدم وجود خسارة افتراضية
+    df['سعر البيع'] = df[['تكلفة الوحدة', 'سعر البيع']].max(axis=1) * 1.3
+    return df 
 # --- 3. محرك التحليل الذكي (The Intelligence Engine) ---
 def advanced_analytics_engine(df, ship_cost, tax_pct, op_cost_pct):
     d = df.copy()
