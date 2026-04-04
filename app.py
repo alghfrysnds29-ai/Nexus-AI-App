@@ -1,5 +1,6 @@
-import streamlit as st
+import os
 import pandas as pd
+# ... باقي المكتبات (streamlit, numpy, إلخ)
 import numpy as np
 import plotly.express as px
 import io
@@ -61,7 +62,16 @@ def advanced_analytics_engine(df, ship_cost, tax_pct, op_cost_pct):
     d['Cum_Profit_Pct'] = d['صافي الربح'].cumsum() / (d['صافي الربح'].sum() + 1) * 100
     d['أهمية المنتج'] = d['Cum_Profit_Pct'].apply(lambda x: 'A (نجم)' if x <= 70 else ('B (مستقر)' if x <= 90 else 'C (ضعيف)'))
     return d
-
+@st.cache_data
+def load_huge_data():
+    file_path = "huge_nexus_data.csv"
+    if not os.path.exists(file_path):
+        import data_manager 
+        df = data_manager.create_huge_database(file_path, rows=50000)
+    else:
+        df = pd.read_csv(file_path)
+        df['تاريخ الطلب'] = pd.to_datetime(df['تاريخ الطلب'])
+    return df
 # --- 4. الشريط الجانبي: التحكم، الربط (Mapping)، والفلاتر ---
 st.sidebar.image("https://cdn-icons-png.flaticon.com/512/1548/1548914.png", width=80)
 st.sidebar.title("إعدادات النظام")
@@ -71,8 +81,10 @@ data_source = st.sidebar.radio("مصدر البيانات:", ["بيانات ال
 if data_source == "رفع ملف Excel/CSV":
     uploaded_file = st.sidebar.file_uploader("ارفع ملفك هنا", type=['xlsx', 'csv'])
     if uploaded_file:
-        raw_df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
-        # ميزة 5: نظام التوافق (Data Mapping)
+else:
+    # هنا نستدعي القاعدة الضخمة بدلاً من توليد بيانات صغيرة
+    raw_df = load_huge_data()
+    # ميزة 5: نظام التوافق (Data Mapping)
         with st.sidebar.expander("🔗 ربط أعمدة ملفك بالنظام"):
             cols = raw_df.columns.tolist()
             map_date = st.selectbox("عمود التاريخ", cols)
