@@ -1,4 +1,45 @@
 import streamlit as st
+import streamlit as st
+
+# حالة اللغة الافتراضية
+if "lang" not in st.session_state:
+    st.session_state.lang = "en"
+
+# زر التبديل بين اللغات
+if st.button("Switch to Arabic" if st.session_state.lang == "en" else "التبديل إلى الإنجليزية"):
+    st.session_state.lang = "ar" if st.session_state.lang == "en" else "en"
+
+# النصوص باللغتين
+texts = {
+    "en": {
+        "title": "Supply Chain Management Dashboard",
+        "welcome": "Welcome to your centralized platform for managing supply chain operations efficiently.",
+        "feature1": "Centralized Dashboard",
+        "feature2": "Smart Analytics",
+        "feature3": "Collaboration Tools",
+        "feature4": "Scalable & Flexible"
+    },
+    "ar": {
+        "title": "لوحة إدارة سلسلة التوريد",
+        "welcome": "مرحبًا بك في منصتك المركزية لإدارة عمليات سلسلة التوريد بكفاءة.",
+        "feature1": "لوحة مركزية",
+        "feature2": "تحليلات ذكية",
+        "feature3": "أدوات التعاون",
+        "feature4": "قابلية التوسع والمرونة"
+    }
+}
+
+# عرض المحتوى حسب اللغة
+lang = st.session_state.lang
+st.title(texts[lang]["title"])
+st.write(texts[lang]["welcome"])
+
+st.subheader("Features" if lang == "en" else "المميزات")
+st.write("- " + texts[lang]["feature1"])
+st.write("- " + texts[lang]["feature2"])
+st.write("- " + texts[lang]["feature3"])
+st.write("- " + texts[lang]["feature4"])
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
